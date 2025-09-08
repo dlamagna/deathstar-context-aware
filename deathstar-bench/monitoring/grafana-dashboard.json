@@ -24,7 +24,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "bebmt0vcmy134c"
+        "uid": "bexfug0nscoowa"
       },
       "fieldConfig": {
         "defaults": {
@@ -104,7 +104,7 @@
       "targets": [
         {
           "editorMode": "code",
-          "expr": "sum by (service) (rate(container_cpu_usage_seconds_total{namespace=\"default\", container=~\"compose.*\"}[2m]))",
+          "expr": "sum by (service) (rate(container_cpu_usage_seconds_total{namespace=\"socialnetwork\", container=~\"compose.*\"}[2m]))",
           "legendFormat": "__auto",
           "range": true,
           "refId": "A"
@@ -115,7 +115,7 @@
             "uid": "bebmt0vcmy134c"
           },
           "editorMode": "code",
-          "expr": "sum by (service) (rate(container_cpu_usage_seconds_total{namespace=\"default\", container=~\"nginx.*\"}[2m]))",
+          "expr": "sum by (service) (rate(container_cpu_usage_seconds_total{namespace=\"socialnetwork\", container=~\"nginx.*\"}[2m]))",
           "hide": false,
           "instant": false,
           "legendFormat": "__auto",
@@ -128,7 +128,7 @@
             "uid": "bebmt0vcmy134c"
           },
           "editorMode": "code",
-          "expr": "sum by (service) (rate(container_cpu_usage_seconds_total{namespace=\"default\", container=~\"text.*\"}[2m]))",
+          "expr": "sum by (service) (rate(container_cpu_usage_seconds_total{namespace=\"socialnetwork\", container=~\"text.*\"}[2m]))",
           "hide": false,
           "instant": false,
           "legendFormat": "__auto",
@@ -141,7 +141,7 @@
             "uid": "bebmt0vcmy134c"
           },
           "editorMode": "code",
-          "expr": "sum by (service) (rate(container_cpu_usage_seconds_total{namespace=\"default\", container=~\"user-mention.*\"}[2m]))",
+          "expr": "sum by (service) (rate(container_cpu_usage_seconds_total{namespace=\"socialnetwork\", container=~\"user-mention.*\"}[2m]))",
           "hide": false,
           "instant": false,
           "legendFormat": "__auto",
@@ -235,7 +235,7 @@
       "targets": [
         {
           "editorMode": "code",
-          "expr": "sum(rate(container_cpu_usage_seconds_total{namespace=\"default\", container=~\"compose.*\"}[2m]))\n/\nsum(kube_pod_container_resource_limits{resource=\"cpu\", namespace=\"default\", container=~\"compose.*\", service=\"kube-state-metrics\"}) * 100",
+          "expr": "sum(rate(container_cpu_usage_seconds_total{namespace=\"socialnetwork\", container=~\"compose.*\"}[2m]))\n/\nsum(kube_pod_container_resource_limits{resource=\"cpu\", namespace=\"socialnetwork\", container=~\"compose.*\", app_kubernetes_io_instance=\"prometheus\"}) * 100",
           "hide": false,
           "legendFormat": "__auto",
           "range": true,
@@ -247,7 +247,7 @@
             "uid": "bebmt0vcmy134c"
           },
           "editorMode": "code",
-          "expr": "sum(rate(container_cpu_usage_seconds_total{namespace=\"default\", container=~\"nginx.*\"}[2m]))\n/\nsum(kube_pod_container_resource_limits{resource=\"cpu\", namespace=\"default\", container=~\"nginx.*\", service=\"kube-state-metrics\"}) * 100",
+          "expr": "sum(rate(container_cpu_usage_seconds_total{namespace=\"socialnetwork\", container=~\"nginx.*\"}[2m]))\n/\nsum(kube_pod_container_resource_limits{resource=\"cpu\", namespace=\"socialnetwork\", container=~\"nginx.*\", app_kubernetes_io_instance=\"prometheus\"}) * 100",
           "hide": false,
           "instant": false,
           "legendFormat": "__auto",
@@ -260,7 +260,7 @@
             "uid": "bebmt0vcmy134c"
           },
           "editorMode": "code",
-          "expr": "sum(rate(container_cpu_usage_seconds_total{namespace=\"default\", container=~\"text-service.*\"}[2m]))\n/\nsum(kube_pod_container_resource_limits{resource=\"cpu\", namespace=\"default\", container=~\"text-service.*\", service=\"kube-state-metrics\"}) * 100",
+          "expr": "sum(rate(container_cpu_usage_seconds_total{namespace=\"socialnetwork\", container=~\"text-service.*\"}[2m]))\n/\nsum(kube_pod_container_resource_limits{resource=\"cpu\", namespace=\"socialnetwork\", container=~\"text-service.*\", app_kubernetes_io_instance=\"prometheus\"}) * 100",
           "hide": false,
           "instant": false,
           "legendFormat": "__auto",
@@ -273,7 +273,7 @@
             "uid": "bebmt0vcmy134c"
           },
           "editorMode": "code",
-          "expr": "sum(rate(container_cpu_usage_seconds_total{namespace=\"default\", container=~\"user-mention.*\"}[2m]))\n/\nsum(kube_pod_container_resource_limits{resource=\"cpu\", namespace=\"default\", container=~\"user-mention.*\", service=\"kube-state-metrics\"}) * 100\n",
+          "expr": "sum(rate(container_cpu_usage_seconds_total{namespace=\"socialnetwork\", container=~\"user-mention.*\"}[2m]))\n/\nsum(kube_pod_container_resource_limits{resource=\"cpu\", namespace=\"socialnetwork\", container=~\"user-mention.*\", app_kubernetes_io_instance=\"prometheus\"}) * 100\n",
           "hide": false,
           "instant": false,
           "legendFormat": "__auto",
@@ -371,7 +371,7 @@
             "uid": "bebmt0vcmy134c"
           },
           "editorMode": "code",
-          "expr": "count by (app) (kube_pod_info{pod=~\"compose.*\", app_kubernetes_io_instance=\"kube-state-metrics\"})",
+          "expr": "count by (app) (kube_pod_info{pod=~\"compose.*\", app_kubernetes_io_instance=\"prometheus\"})",
           "hide": false,
           "legendFormat": "__auto",
           "range": true,
@@ -383,7 +383,7 @@
             "uid": "bebmt0vcmy134c"
           },
           "editorMode": "code",
-          "expr": "count by (app) (kube_pod_info{pod=~\"nginx.*\", app_kubernetes_io_instance=\"kube-state-metrics\"})",
+          "expr": "count by (app) (kube_pod_info{pod=~\"nginx.*\", app_kubernetes_io_instance=\"prometheus\"})",
           "hide": false,
           "instant": false,
           "legendFormat": "__auto",
@@ -396,7 +396,7 @@
             "uid": "bebmt0vcmy134c"
           },
           "editorMode": "code",
-          "expr": "count by (app) (kube_pod_info{pod=~\"text-service.*\", app_kubernetes_io_instance=\"kube-state-metrics\"})",
+          "expr": "count by (app) (kube_pod_info{pod=~\"text-service.*\", app_kubernetes_io_instance=\"prometheus\"})",
           "hide": false,
           "instant": false,
           "legendFormat": "__auto",
@@ -409,7 +409,7 @@
             "uid": "bebmt0vcmy134c"
           },
           "editorMode": "code",
-          "expr": "count by (app) (kube_pod_info{pod=~\"user-mention.*\", app_kubernetes_io_instance=\"kube-state-metrics\"})",
+          "expr": "count by (app) (kube_pod_info{pod=~\"user-mention.*\", app_kubernetes_io_instance=\"prometheus\"})",
           "hide": false,
           "instant": false,
           "legendFormat": "__auto",
@@ -428,10 +428,7 @@
   "templating": {
     "list": []
   },
-  "time": {
-    "from": "2025-01-31T10:59:32.128Z",
-    "to": "2025-01-31T11:47:06.849Z"
-  },
+  "time": { "from": "now-15m", "to": "now" },
   "timepicker": {},
   "timezone": "browser",
   "title": "HPA Shared Info",

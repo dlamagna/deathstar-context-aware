@@ -43,7 +43,7 @@ priorityClassName: ""
 prometheus:
   path: ""
   port: 9090
-  url: http://prometheus.default.svc
+  url: http://prometheus-server.monitoring.svc
 psp:
   annotations: {}
   create: false
@@ -67,32 +67,62 @@ replicas: 1
 resources: {}
 rules:
   external:
-  # Metric 1: CPU usage for chain-2 multiplied by the number of pods
-  - seriesQuery: 'container_cpu_usage_seconds_total{namespace="default", pod=~"chain-2-.*"}'
+  # CPU utilization percent for nginx-thrift (front of chain)
+  - seriesQuery: 'container_cpu_usage_seconds_total{namespace="socialnetwork", pod=~"nginx-thrift-.*"}'
     resources:
       overrides:
         namespace: {resource: "namespace"}
         pod: {resource: "pod"}
     name:
       matches: ".*"
-      as: "chain2_cpu_quota"
+      as: "nginx_thrift_cpu_utilization_pct"
     metricsQuery: |
-      sum(rate(container_cpu_usage_seconds_total{namespace="default", pod=~"chain-2-.*"}[2m])) *100
+      (sum(rate(container_cpu_usage_seconds_total{namespace="socialnetwork", pod=~"nginx-thrift-.*"}[2m])) * 100)
       /
-      sum(kube_pod_container_resource_requests{namespace="default", pod=~"chain-2-.*"})
-  # Metric 5: CPU usage for chain-1 multiplied by the number of pods
-  - seriesQuery: 'container_cpu_usage_seconds_total{namespace="default", pod=~"chain-1-.*"}'
+      sum(kube_pod_container_resource_requests{namespace="socialnetwork", pod=~"nginx-thrift-.*", resource="cpu"})
+
+  # CPU utilization percent for compose-post-service
+  - seriesQuery: 'container_cpu_usage_seconds_total{namespace="socialnetwork", pod=~"compose-post-service-.*"}'
     resources:
       overrides:
         namespace: {resource: "namespace"}
         pod: {resource: "pod"}
     name:
       matches: ".*"
-      as: "chain1_cpu_quota"
+      as: "compose_post_cpu_utilization_pct"
     metricsQuery: |
-      sum(rate(container_cpu_usage_seconds_total{namespace="default", pod=~"chain-1-.*"}[2m])) *100
+      (sum(rate(container_cpu_usage_seconds_total{namespace="socialnetwork", pod=~"compose-post-service-.*"}[2m])) * 100)
       /
-      sum(kube_pod_container_resource_requests{namespace="default", pod=~"chain-1-.*"})
+      sum(kube_pod_container_resource_requests{namespace="socialnetwork", pod=~"compose-post-service-.*", resource="cpu"})
+
+  # CPU utilization percent for text-service
+  - seriesQuery: 'container_cpu_usage_seconds_total{namespace="socialnetwork", pod=~"text-service-.*"}'
+    resources:
+      overrides:
+        namespace: {resource: "namespace"}
+        pod: {resource: "pod"}
+    name:
+      matches: ".*"
+      as: "text_service_cpu_utilization_pct"
+    metricsQuery: |
+      (sum(rate(container_cpu_usage_seconds_total{namespace="socialnetwork", pod=~"text-service-.*"}[2m])) * 100)
+      /
+      sum(kube_pod_container_resource_requests{namespace="socialnetwork", pod=~"text-service-.*", resource="cpu"})
+
+  # CPU utilization percent for user-mention-service
+  - seriesQuery: 'container_cpu_usage_seconds_total{namespace="socialnetwork", pod=~"user-mention-service-.*"}'
+    resources:
+      overrides:
+        namespace: {resource: "namespace"}
+        pod: {resource: "pod"}
+    name:
+      matches: ".*"
+      as: "user_mention_cpu_utilization_pct"
+    metricsQuery: |
+      (sum(rate(container_cpu_usage_seconds_total{namespace="socialnetwork", pod=~"user-mention-service-.*"}[2m])) * 100)
+      /
+      sum(kube_pod_container_resource_requests{namespace="socialnetwork", pod=~"user-mention-service-.*", resource="cpu"})
+
   default: false
   existing: null
   custom: []
