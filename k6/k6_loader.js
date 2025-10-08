@@ -15,15 +15,34 @@ import { randomIntBetween, randomString } from 'https://jslib.k6.io/k6-utils/1.4
 //     },
 // };
 
+const STAGE_TARGET = Number(__ENV.K6_TARGET || 40);
+const STAGE_DURATION = __ENV.K6_DURATION || '180s';
+const REQUEST_TIMEOUT = __ENV.K6_TIMEOUT || '5s';
+
+// Build a short scenario: 30s ramp to half target, hold for (duration-60s) at target, 30s ramp down
+function buildStages(total, target) {
+    // simple split: 30s warmup, 30s cooldown, rest as steady
+    const warm = '30s';
+    const cool = '30s';
+    let steadySeconds = 0;
+    try {
+        const m = total.match(/^(\d+)(s)$/);
+        if (m) steadySeconds = Math.max(0, parseInt(m[1], 10) - 60);
+    } catch (_) {}
+    const steady = `${steadySeconds}s`;
+    const half = Math.max(1, Math.floor(target / 2));
+    return [
+        { duration: warm, target: half },
+        { duration: steady, target: target },
+        { duration: cool, target: 1 },
+    ];
+}
+
 export const options = {
-    stages: [
-      { duration: '1m', target: 150 },
-      { duration: '13m', target: 180},
-      { duration: '1m', target: 1 },
-    ],
+    stages: buildStages(STAGE_DURATION, STAGE_TARGET),
 };
 
-const nginx_host = '147.83.130.183:32000';//'147.83.130.67:30177'
+const nginx_host = __ENV.NGINX_HOST || '147.83.130.183:32000';//'147.83.130.67:30177'
 const baseURL = `http://${nginx_host}/wrk2-api/post/compose`;
 
 function generatePostData(userIndex) {
@@ -51,7 +70,7 @@ export default function () {
 
     let params = {
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        timeout: '1s',  // Add 1 second timeout here
+        timeout: REQUEST_TIMEOUT,  // Configurable timeout via K6_TIMEOUT environment variable
     };
 
     let res = http.post(baseURL, body, params);
