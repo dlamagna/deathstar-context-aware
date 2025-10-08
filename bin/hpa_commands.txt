@@ -1,0 +1,87 @@
+# external metrics are exposed:
+kubectl get --raw "/apis/external.metrics.k8s.io/v1beta1" | jq '.resources[].name'
+# "user_mention_cpu_utilization_pct", "nginx_thrift_cpu_utilization_pct", "compose_post_cpu_utilization_pct", "text_service_cpu_utilization_pct"
+
+# Sample values:
+kubectl get --raw "/apis/external.metrics.k8s.io/v1beta1/namespaces/socialnetwork/nginx_thrift_cpu_utilization_pct" | jq '.items[0].value'
+# "116m"  (milli-percent; 116m = 0.116%)
+
+# HPA is reading metrics:
+
+kubectl describe hpa -n socialnetwork | sed -n '1,220p' | cat
+# ScalingActive True; current vs target shown for all four HPAs
+
+
+# Useful commands
+kubectl get pods -n monitoring
+kubectl get svc -n monitoring
+kubectl get deploy,pod -n socialnetwork
+
+# check adapter and metrics
+kubectl get apiservice | grep external.metrics
+kubectl get --raw "/apis/external.metrics.k8s.io/v1beta1" | jq .
+for m in nginx_thrift_cpu_utilization_pct compose_post_cpu_utilization_pct text_service_cpu_utilization_pct user_mention_cpu_utilization_pct; do
+  kubectl get --raw "/apis/external.metrics.k8s.io/v1beta1/namespaces/socialnetwork/$m" | jq .
+done
+
+
+# inpsect HPA
+kubectl get hpa -n socialnetwork
+kubectl describe hpa nginx-thrift-hpa -n socialnetwork | sed -n '1,200p' | cat
+
+#prometheus UIlocally
+kubectl -n monitoring port-forward svc/kube-prometheus-stack-prometheus 9090:9090 | cat
+
+
+# -----------------------------
+# SWITCH BETWEEN HPA MODES
+# -----------------------------
+
+# Namespaces
+SOCIAL_NS=socialnetwork
+
+# Files
+export DEFAULT_HPA=deathstar-bench/hpa/default_hpa.yaml
+export CONTEXT_HPA=deathstar-bench/hpa/context_aware_hpa_values.yaml
+export SERVICE_VALUES=deathstar-bench/hpa/service_values.yaml
+export ACTIVE_HPA="$CONTEXT_HPA"  # Will be updated when switching modes
+
+# Option A: Switch to CONTEXT-AWARE HPA (uses external metrics via Prometheus Adapter)
+# - Requires Prometheus Adapter installed and external metrics exposed
+kubectl apply -f "$SERVICE_VALUES" -n "$SOCIAL_NS"
+kubectl apply -f "$CONTEXT_HPA" -n "$SOCIAL_NS"
+export ACTIVE_HPA="$CONTEXT_HPA"
+
+# Verify
+kubectl get hpa -n "$SOCIAL_NS"
+kubectl describe hpa -n "$SOCIAL_NS" | sed -n '1,220p' | cat
+# Expect: Metrics show external metric names like *_cpu_utilization_pct and ScalingActive=True
+
+# Option B: Switch to DEFAULT HPA (CPU utilization % of requests)
+kubectl apply -f "$DEFAULT_HPA" -n "$SOCIAL_NS"
+export ACTIVE_HPA="$DEFAULT_HPA"
+
+# Verify
+kubectl get hpa -n "$SOCIAL_NS"
+kubectl describe hpa -n "$SOCIAL_NS" | sed -n '1,220p' | cat
+# Expect: Metrics show resource cpu (as a percentage of request)
+
+# -----------------------------
+# RESTART HPA (delete HPAs, scale to 0, re-apply previous, scale to 1)
+# -----------------------------
+
+# Delete existing HPAs in the socialnetwork namespace (ignore if not present)
+kubectl delete hpa -n "$SOCIAL_NS" nginx-thrift-hpa compose-post-service-hpa text-service-hpa user-mention-service-hpa 2>/dev/null || true
+
+# Scale all deployments to 0 replicas (pause workload)
+kubectl get deploy -n "$SOCIAL_NS" -o name | xargs -r -n1 kubectl -n "$SOCIAL_NS" scale --replicas=0
+
+# Re-apply service values and the previously active HPA manifest
+kubectl apply -f "$SERVICE_VALUES" -n "$SOCIAL_NS"
+kubectl apply -f "$ACTIVE_HPA" -n "$SOCIAL_NS"
+
+# Scale all deployments back to 1 replica to restart with HPA attached
+kubectl get deploy -n "$SOCIAL_NS" -o name | xargs -r -n1 kubectl -n "$SOCIAL_NS" scale --replicas=1
+
+# Cleanup (optional): remove stale HPAs in the default namespace if present
+kubectl delete hpa -n default nginx-thrift-hpa compose-post-service-hpa text-service-hpa user-mention-service-hpa 2>/dev/null || true
