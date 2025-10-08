@@ -16,7 +16,7 @@ spec:
           name: nginx_thrift_cpu_utilization_pct
         target:
           type: Value
-          value: 80
+          value: 50000m
 
 ---
 apiVersion: autoscaling/v2
@@ -37,7 +37,7 @@ spec:
           name: compose_post_cpu_utilization_pct
         target:
           type: Value
-          value: 80
+          value: 50000m
 
 ---
 apiVersion: autoscaling/v2
@@ -58,7 +58,7 @@ spec:
           name: text_service_cpu_utilization_pct
         target:
           type: Value
-          value: 80
+          value: 50000m
 
 ---
 apiVersion: autoscaling/v2
@@ -79,4 +79,4 @@ spec:
           name: user_mention_cpu_utilization_pct
         target:
           type: Value
-          value: 60
+          value: 50000m
