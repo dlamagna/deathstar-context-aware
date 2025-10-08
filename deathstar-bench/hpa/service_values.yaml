@@ -45,3 +45,19 @@ spec:
             cpu: "100m"
           limits:
             cpu: "100m"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx-thrift
+  namespace: socialnetwork
+spec:
+  template:
+    spec:
+      containers:
+      - name: nginx-thrift
+        resources:
+          requests:
+            cpu: "100m"
+          limits:
+            cpu: "100m"
