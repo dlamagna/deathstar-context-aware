@@ -7,6 +7,7 @@ This repository provides scripts to deploy the **Social Network** application fr
 ```
 .
 ├── install_k8s.sh                    # Installs Kubernetes with containerd and Flannel
+├── hpa_comparison_test.sh            # Automated HPA comparison testing script
 ├── README.md                         # This file
 ├── deathstar-bench/                  # DeathStarBench deployment files
 │   ├── deploy/                       # Deployment scripts
@@ -14,15 +15,18 @@ This repository provides scripts to deploy the **Social Network** application fr
 │   │   ├── fetch_ports.sh            # Gets the exposed ports of services
 │   │   └── reset_testbed.sh          # Resets all SocialNetwork pods
 │   ├── hpa/                          # HPA configuration files
-│   │   ├── hpa_values.yaml           # Values for HPA configuration
+│   │   ├── default_hpa.yaml          # Default HPA configuration (resource metrics)
+│   │   ├── context_aware_hpa_values.yaml # Context-aware HPA configuration (external metrics)
 │   │   └── service_values.yaml       # Values for service deployment
 │   └── monitoring/                   # Monitoring stack files
 │       ├── deploy_monitoring.sh      # Deploys Prometheus & Grafana
 │       └── grafana-dashboard.json    # Grafana dashboard configuration
 ├── k6/                               # Load testing files
 │   ├── k6_csv_report_parser.py       # CSV report parser for k6 results
+│   ├── k6_report_comparison.py       # Compare two k6 CSV reports
 │   ├── k6_loader.js                  # k6 load testing script
-│   └── reports/                      # Directory for test reports
+│   ├── reports/                      # Directory for test reports
+│   └── plots/                        # Directory for visualization plots
 └── prom/                             # Prometheus configuration
     └── prometheus-adapter-values.yaml # Prometheus adapter values
 ```
@@ -288,11 +292,109 @@ Notes:
 
 - Context-aware chaining: after validating that each service scales on its own proportional CPU load via Prometheus Adapter metrics, update `prom/prometheus-adapter-values.yaml` so each downstream service scales based on the upstream hop (e.g., `compose-post` on `nginx-thrift`, `text-service` on `compose-post-service`, `user-mention-service` on `text-service`). Reinstall the adapter and verify external metric endpoints before tuning HPA targets.
 
+### HPA Comparison Testing
+
+#### Automated HPA Comparison Script
+
+The `hpa_comparison_test.sh` script automates the entire process of comparing two different HPA configurations, including deployment, load testing, and analysis.
+
+##### Features
+
+- **Automated HPA Deployment**: Applies service CPU requests and HPA configurations
+- **Intelligent Stabilization**: Waits for deployments to stabilize between tests
+- **Configurable Load Testing**: Supports custom k6 parameters via environment variables
+- **Comprehensive Analysis**: Generates comparison reports and visualizations
+- **Robust Error Handling**: Includes retry mechanisms and detailed logging
+
+##### Usage
+
+```bash
+./hpa_comparison_test.sh <HPA1_YAML> <HPA2_YAML> <TEST_NAME>
+```
+
+**Arguments:**
+- `HPA1_YAML`: Path to first HPA configuration file
+- `HPA2_YAML`: Path to second HPA configuration file  
+- `TEST_NAME`: Name for the test run (used for output files)
+
+**Example:**
+```bash
+# Compare default HPA vs context-aware HPA
+./hpa_comparison_test.sh \
+  deathstar-bench/hpa/default_hpa.yaml \
+  deathstar-bench/hpa/context_aware_hpa_values.yaml \
+  default_vs_context_aware_test
+
+# Compare same HPA with different timeout settings
+K6_TIMEOUT_HPA1=1s K6_TIMEOUT_HPA2=5s \
+./hpa_comparison_test.sh \
+  deathstar-bench/hpa/default_hpa.yaml \
+  deathstar-bench/hpa/default_hpa.yaml \
+  timeout_comparison_test
+```
+
+##### Environment Variables
+
+The script supports various k6 configuration options via environment variables:
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `K6_DURATION` | `600s` | Total test duration |
+| `K6_TARGET` | `50` | Target number of virtual users |
+| `K6_TIMEOUT_HPA1` | `5s` | Request timeout for first test |
+| `K6_TIMEOUT_HPA2` | `5s` | Request timeout for second test |
+| `NGINX_HOST` | Auto-detected | Target endpoint for load testing |
+
+##### Output Files
+
+The script generates the following outputs in `k6/reports/`:
+
+- `{TEST_NAME}_hpa1.csv`: k6 results from first HPA configuration
+- `{TEST_NAME}_hpa2.csv`: k6 results from second HPA configuration  
+- `{TEST_NAME}_comparison.json`: Detailed comparison analysis
+- `k6/plots/`: Visualization plots (latency distribution, metrics summary)
+
+##### Script Workflow
+
+1. **Setup**: Applies service CPU requests and validates cluster state
+2. **First Test**: 
+   - Applies first HPA configuration
+   - Waits for HPA to stabilize
+   - Restarts deployments for clean state
+   - Runs k6 load test
+3. **Reset**: Waits for pods to scale down to baseline (1 replica each)
+4. **Second Test**:
+   - Applies second HPA configuration  
+   - Waits for HPA to stabilize
+   - Restarts deployments for clean state
+   - Runs k6 load test
+5. **Analysis**: Generates comparison report and visualizations
+
+##### Help and Options
+
+```bash
+./hpa_comparison_test.sh --help
+```
+
 ## Experiment: Default vs Adapter @ 50% Parity Test
 
 Goal: show that the Prometheus Adapter HPA behaves similarly to the default (resource) HPA when both target 50% CPU, then produce two comparable k6 reports.
 
-Checklist / TODOs:
+### Quick Automated Test
+
+Use the automated comparison script for a streamlined test:
+
+```bash
+# Run automated comparison with default settings (10 minutes, 50 VUs)
+./hpa_comparison_test.sh \
+  deathstar-bench/hpa/default_hpa.yaml \
+  deathstar-bench/hpa/context_aware_hpa_values.yaml \
+  parity_test_50pct
+```
+
+### Manual Step-by-Step Process
+
+For detailed control and understanding, follow this manual checklist:
 1) Preconditions
    - Cluster up; `monitoring` stack installed (kube-prometheus-stack, kube-state-metrics, metrics-server)
    - Adapter configured to `http://kube-prometheus-stack-prometheus.monitoring.svc:9090` (see `prom/prometheus-adapter-values.yaml`)
