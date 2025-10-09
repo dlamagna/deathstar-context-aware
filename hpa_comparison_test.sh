@@ -32,12 +32,16 @@ print_error() {
 
 # Function to show usage
 show_usage() {
-    echo "Usage: $0 <hpa1.yaml> <hpa2.yaml> <test_name>"
+    echo "Usage: $0 <hpa1.yaml> <hpa2.yaml> <test_name> [--force-reset]"
     echo ""
     echo "Arguments:"
     echo "  hpa1.yaml    - First HPA configuration file"
     echo "  hpa2.yaml    - Second HPA configuration file"
     echo "  test_name    - Name for this test run (used in output files)"
+    echo ""
+    echo "Options:"
+    echo "  --force-reset - Use aggressive reset (delete HPA, scale down, restart) between tests"
+    echo "  --help        - Show this help message"
     echo ""
     echo "Environment Variables (optional):"
     echo "  K6_DURATION     - k6 test duration (default: 120s)"
@@ -49,6 +53,9 @@ show_usage() {
     echo "Example:"
     echo "  $0 deathstar-bench/hpa/default_hpa.yaml deathstar-bench/hpa/context_aware_hpa_values.yaml parity_test"
     echo ""
+    echo "Example with force reset for guaranteed clean state:"
+    echo "  $0 --force-reset deathstar-bench/hpa/default_hpa.yaml deathstar-bench/hpa/context_aware_hpa_values.yaml clean_test"
+    echo ""
     echo "Example with custom parameters:"
     echo "  K6_DURATION=300s K6_TARGET=100 K6_TIMEOUT=10s $0 deathstar-bench/hpa/default_hpa.yaml deathstar-bench/hpa/context_aware_hpa_values.yaml long_test"
     echo ""
@@ -57,12 +64,21 @@ show_usage() {
     exit 1
 }
 
+# Initialize variables
+FORCE_RESET=false
+
 # Check for help flag
 if [ "$1" = "--help" ] || [ "$1" = "-h" ]; then
     show_usage
 fi
 
-# Check arguments
+# Check for force-reset flag
+if [ "$1" = "--force-reset" ]; then
+    FORCE_RESET=true
+    shift  # Remove --force-reset from arguments
+fi
+
+# Check arguments (after potential shift)
 if [ $# -ne 3 ]; then
     print_error "Invalid number of arguments"
     show_usage
@@ -308,6 +324,48 @@ wait_for_pods_to_reset() {
     kubectl get deploy -n socialnetwork | grep -E "(nginx-thrift|compose-post-service|text-service|user-mention-service)"
 }
 
+# Function to force reset deployments by deleting HPA, scaling down, and restarting
+force_reset_deployments() {
+    print_status "=== Force Resetting Deployments for Clean State ==="
+    
+    local deployments=("nginx-thrift" "compose-post-service" "text-service" "user-mention-service")
+    
+    # Step 1: Delete all HPAs
+    print_status "Step 1: Deleting all HPAs..."
+    kubectl delete hpa -n socialnetwork --all --ignore-not-found=true
+    sleep 5
+    
+    # Step 2: Scale down all deployments to 1 replica
+    print_status "Step 2: Scaling down all deployments to 1 replica..."
+    for deployment in "${deployments[@]}"; do
+        print_status "Scaling $deployment to 1 replica..."
+        kubectl scale deployment "$deployment" -n socialnetwork --replicas=1
+    done
+    
+    # Step 3: Wait for deployments to be ready
+    print_status "Step 3: Waiting for deployments to be ready..."
+    for deployment in "${deployments[@]}"; do
+        kubectl rollout status deployment/"$deployment" -n socialnetwork --timeout=300s
+    done
+    
+    # Step 4: Restart all deployments
+    print_status "Step 4: Restarting all deployments for clean state..."
+    for deployment in "${deployments[@]}"; do
+        print_status "Restarting $deployment..."
+        kubectl rollout restart deployment/"$deployment" -n socialnetwork
+    done
+    
+    # Step 5: Wait for all deployments to be ready after restart
+    print_status "Step 5: Waiting for all deployments to be ready after restart..."
+    for deployment in "${deployments[@]}"; do
+        kubectl rollout status deployment/"$deployment" -n socialnetwork --timeout=300s
+    done
+    
+    print_success "Force reset completed - all deployments are at 1 replica with fresh pods"
+    print_status "Current deployment status:"
+    kubectl get deploy -n socialnetwork | grep -E "(nginx-thrift|compose-post-service|text-service|user-mention-service)"
+}
+
 # Function to run comparison
 run_comparison() {
     print_status "Running comparison analysis..."
@@ -347,9 +405,15 @@ main() {
     export K6_TIMEOUT="${K6_TIMEOUT_HPA1:-5s}"
     run_k6_test "$HPA1_OUTPUT" "HPA Configuration 1"
     
-    # Step 3: Wait for pods to reset
-    wait_for_pods_to_reset
-    print_status "=== Current replica status after first test reset ==="
+    # Step 3: Reset deployments for clean state
+    if [ "$FORCE_RESET" = true ]; then
+        print_status "Using force reset approach for guaranteed clean state"
+        force_reset_deployments
+    else
+        print_status "Using standard reset approach (waiting for HPA to scale down)"
+        wait_for_pods_to_reset
+    fi
+    print_status "=== Current replica status after reset ==="
     kubectl get deploy -n socialnetwork | grep -E "(nginx-thrift|compose-post-service|text-service|user-mention-service)"
     
     # Step 4: Test with second HPA configuration
