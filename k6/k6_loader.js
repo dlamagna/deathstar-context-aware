@@ -19,27 +19,13 @@ const STAGE_TARGET = Number(__ENV.K6_TARGET || 40);
 const STAGE_DURATION = __ENV.K6_DURATION || '180s';
 const REQUEST_TIMEOUT = __ENV.K6_TIMEOUT || '5s';
 
-// Build a short scenario: 30s ramp to half target, hold for (duration-60s) at target, 30s ramp down
-function buildStages(total, target) {
-    // simple split: 30s warmup, 30s cooldown, rest as steady
-    const warm = '30s';
-    const cool = '30s';
-    let steadySeconds = 0;
-    try {
-        const m = total.match(/^(\d+)(s)$/);
-        if (m) steadySeconds = Math.max(0, parseInt(m[1], 10) - 60);
-    } catch (_) {}
-    const steady = `${steadySeconds}s`;
-    const half = Math.max(1, Math.floor(target / 2));
-    return [
-        { duration: warm, target: half },
-        { duration: steady, target: target },
-        { duration: cool, target: 1 },
-    ];
-}
-
 export const options = {
-    stages: buildStages(STAGE_DURATION, STAGE_TARGET),
+    stages: [
+        { duration: '1m', target: Math.floor(STAGE_TARGET * 0.3) },  // 30% of target for warmup
+        { duration: STAGE_DURATION, target: STAGE_TARGET },          // Full target for main duration
+        { duration: '1m', target: 1 },                               // Cool down to 1
+    ],
+    vus: STAGE_TARGET,  // Maximum VUs to allocate
 };
 
 const nginx_host = __ENV.NGINX_HOST || '147.83.130.183:32000';//'147.83.130.67:30177'
