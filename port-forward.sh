@@ -1,0 +1,1 @@
+kubectl port-forward -n monitoring svc/kube-prometheus-stack-grafana 30900:80 --address=0.0.0.0
