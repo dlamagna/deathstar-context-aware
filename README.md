@@ -2,6 +2,23 @@
 
 This repository provides scripts to deploy the **Social Network** application from the [DeathStarBench](https://github.com/delimitrou/DeathStarBench) benchmark suite on a **Kubernetes cluster**, along with optional **monitoring** tools and our **Context-Aware HPA** (Horizontal Pod Autoscaler) configuration.
 
+## Table of Contents
+
+- [Repository Structure](#repository-structure)
+- [Quickstart](#quickstart)
+  - [1. Install Kubernetes](#1-install-kubernetes)
+  - [2. (Optional) Deploy Monitoring Stack (legacy helper)](#2-optional-deploy-monitoring-stack-legacy-helper)
+  - [3. Deploy the Social Network App](#3-deploy-the-social-network-app)
+  - [4. Fetch Service Ports](#4-fetch-service-ports)
+  - [5. Reset/Create full testbed (monitoring + app)](#5-resetcreate-full-testbed-monitoring--app)
+  - [6. HPA: Default vs Context-Aware](#6-hpa-default-vs-context-aware)
+  - [Load Testing](#load-testing)
+  - [Enhanced k6 + Prometheus report](#enhanced-k6--prometheus-report)
+- [Appendix](#appendix)
+  - [Grafana datasource quick fix](#grafana-datasource-quick-fix)
+  - [HPA Comparison Testing](#hpa-comparison-testing)
+  - [Experiment: Default vs Adapter @ 50% Parity Test](#experiment-default-vs-adapter--50-parity-test)
+
 ## Repository Structure
 
 ```
@@ -19,8 +36,9 @@ This repository provides scripts to deploy the **Social Network** application fr
 │   │   ├── context_aware_hpa_values.yaml # Context-aware HPA configuration (external metrics)
 │   │   └── service_values.yaml       # Values for service deployment
 │   └── monitoring/                   # Monitoring stack files
-│       ├── deploy_monitoring.sh      # Deploys Prometheus & Grafana
-│       └── grafana-dashboard.json    # Grafana dashboard configuration
+│       ├── deploy_monitoring.sh      # (legacy) Deploy Prometheus & Grafana
+│       ├── davide-dashboard.json     # Grafana dashboard configuration
+│       └── fix_grafana_datasource.sh # Fix/seed Prometheus datasource and dashboard UID
 ├── k6/                               # Load testing files
 │   ├── k6_csv_report_parser.py       # CSV report parser for k6 results
 │   ├── k6_report_comparison.py       # Compare two k6 CSV reports
@@ -58,7 +76,7 @@ kind create cluster --name socialnetwork
 kubectl cluster-info --context ocialnetwork
 ```
 
-### 2. (Optional) Deploy Monitoring Stack
+### 2. (Optional) Deploy Monitoring Stack (legacy helper)
 
 ```bash
 cd deathstar-bench/monitoring
@@ -104,7 +122,7 @@ chmod +x fetch_ports.sh
 
 Lists exposed NodePorts for UI and services.
 
-### 5. Reset all SocialNetwork pods
+### 5. Reset/Create full testbed (monitoring + app)
 
 ```bash
 cd deathstar-bench/deploy
@@ -112,7 +130,49 @@ chmod +x reset_testbed.sh
 ./reset_testbed.sh
 ```
 
-Deletes and redeploys all SocialNetwork pods, except monitoring.
+Performs a full reset and reinstall: creates cluster (Kind/minikube), installs monitoring (metrics-server, kube-prometheus-stack, kube-state-metrics, Prometheus Adapter), deploys Social Network, applies HPAs, verifies endpoints. Use flags to preserve monitoring or skip parts.
+
+#### Full Testbed Reset Script (`reset_testbed.sh`)
+
+The `reset_testbed.sh` script tears down and rebuilds a Kubernetes testbed (Kind or minikube), installs monitoring, deploys the Social Network app, and applies HPA config.
+
+Usage:
+
+```bash
+./reset_testbed.sh --cluster-type <kind|minikube> [OPTIONS]
+```
+
+Options:
+
+- `--cluster-type <kind|minikube>`: Required. Selects the cluster provider.
+- `--skip-monitoring`: Skip installing monitoring stack (Prometheus, kube-state-metrics, Prometheus Adapter). Not recommended for HPA tests.
+- `--skip-social`: Skip deploying the Social Network app.
+- `--skip-hpa`: Skip applying HPA manifests.
+- `--clean-only`: Delete any existing cluster and exit (no reinstall).
+- `--preload-images`: Preload common application images to avoid pull delays.
+- `--no-dns-resolution`: Skip DNS workarounds; use default cluster DNS as-is.
+
+Behavior notes:
+
+- Metrics Server image is always preloaded into the node to avoid pull timeouts on lab networks:
+  - `registry.k8s.io/metrics-server/metrics-server:v0.8.0`
+  - This is automatic for both Kind and minikube and does not require `--preload-images`.
+- With `--preload-images`, the script also preloads additional app/DB images (Mongo, Redis, Memcached, Nginx/OpenResty, Jaeger).
+- Metrics Server is patched to use permissive kubelet TLS and the correct secure port.
+- Grafana/Prometheus external access: on Kind, the script attempts to bind NodePorts to `PUBLIC_SERVER_IP` via `externalIPs`. If not reachable, it falls back to a temporary `kubectl port-forward` to complete Grafana API setup (datasource + dashboard), but this step is non-fatal so Social Network deploy proceeds regardless.
+
+Examples:
+
+```bash
+# Recreate testbed on minikube (fast path: only metrics-server is preloaded automatically)
+./reset_testbed.sh --cluster-type minikube
+
+# Recreate testbed on minikube and also preload application images
+./reset_testbed.sh --cluster-type minikube --preload-images
+
+# Cleanup only (no reinstall)
+./reset_testbed.sh --cluster-type minikube --clean-only
+```
 
 ### 6. HPA: Default vs Context-Aware
 
@@ -136,7 +196,7 @@ Steps to deploy Context-Aware HPA:
 kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml --server-side --force-conflicts
 kubectl -n kube-system patch deployment metrics-server \
   --type=json \
-  -p='[{"op":"add","path":"/spec/template/spec/containers/0/args","value":["--cert-dir=/tmp","--secure-port=4443","--kubelet-insecure-tls","--kubelet-preferred-address-types=InternalIP,Hostname,InternalDNS,ExternalDNS,ExternalIP"]}]'
+  -p='[{"op":"add","path":"/spec/template/spec/containers/0/args","value":["--cert-dir=/tmp","--secure-port=10250","--kubelet-insecure-tls","--kubelet-preferred-address-types=InternalIP,Hostname,InternalDNS,ExternalDNS,ExternalIP"]}]'
 ```
 
 2) kube-prometheus-stack (Prometheus + default Kubernetes scrape targets) and kube-state-metrics
@@ -291,6 +351,27 @@ Notes:
 ## Appendix
 
 - Context-aware chaining: after validating that each service scales on its own proportional CPU load via Prometheus Adapter metrics, update `prom/prometheus-adapter-values.yaml` so each downstream service scales based on the upstream hop (e.g., `compose-post` on `nginx-thrift`, `text-service` on `compose-post-service`, `user-mention-service` on `text-service`). Reinstall the adapter and verify external metric endpoints before tuning HPA targets.
+
+### Grafana datasource quick fix
+
+If a dashboard shows “Datasource ... was not found”, run the helper from `deathstar-bench/monitoring/` to auto-create/locate the Prometheus datasource and rewrite the dashboard to use the correct UID:
+
+```bash
+cd deathstar-bench/monitoring
+chmod +x fix_grafana_datasource.sh
+./fix_grafana_datasource.sh
+```
+
+Notes:
+- Works for both Kind and minikube. For remote Kind hosts, you can optionally export `PUBLIC_SERVER_IP` so the script can reach Grafana NodePort; if not reachable, the script can be run on the server itself or by using SSH port forwarding:
+  ```bash
+  export PUBLIC_SERVER_IP=<server-ip>
+  ./fix_grafana_datasource.sh
+   # or from your laptop
+   ssh -L 30900:localhost:30900 <user>@<server-ip>
+   open http://localhost:30900
+  ```
+- The script updates the `davide-dashboard.json` ConfigMap so Grafana’s sidecar reloads it automatically.
 
 ### HPA Comparison Testing
 
