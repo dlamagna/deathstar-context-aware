@@ -5,6 +5,7 @@ This repository provides scripts to deploy the **Social Network** application fr
 ## Table of Contents
 
 - [Repository Structure](#repository-structure)
+- [Cluster Overview](#cluster-overview)
 - [Quickstart](#quickstart)
   - [1. Install Kubernetes](#1-install-kubernetes)
   - [2. (Optional) Deploy Monitoring Stack (legacy helper)](#2-optional-deploy-monitoring-stack-legacy-helper)
@@ -48,6 +49,21 @@ This repository provides scripts to deploy the **Social Network** application fr
 └── prom/                             # Prometheus configuration
     └── prometheus-adapter-values.yaml # Prometheus adapter values
 ```
+
+## Cluster Overview
+
+The Social Network request path relevant to the context-aware HPA chain is:
+
+```
+nginx-thrift (frontend/API gateway)
+  → compose-post-service (builds the composed post)
+    → text-service (parses text for mentions/hashtags)
+      → user-mention-service (resolves user mentions)
+```
+
+- Parent → child scaling dependency used by the context-aware HPA (upstream drives downstream):
+  - nginx-thrift → compose-post-service → text-service → user-mention-service
+- In “parity” configurations we scale each service on its own CPU, but for “chained/context-aware” configs we use an upstream service’s CPU metric as the external metric for the downstream HPA (see notes in `prom/prometheus-adapter-values.yaml`).
 
 ## Quickstart
 
@@ -151,6 +167,8 @@ Options:
 - `--clean-only`: Delete any existing cluster and exit (no reinstall).
 - `--preload-images`: Preload common application images to avoid pull delays.
 - `--no-dns-resolution`: Skip DNS workarounds; use default cluster DNS as-is.
+- `--persist-monitoring-data`: Persist Prometheus/Grafana data across Kind resets.
+- `--remote-write-url <URL>`: Configure Prometheus remote_write to an external TSDB.
 
 Behavior notes:
 
@@ -372,6 +390,42 @@ Notes:
    open http://localhost:30900
   ```
 - The script updates the `davide-dashboard.json` ConfigMap so Grafana’s sidecar reloads it automatically.
+
+### Persisting monitoring data (Kind)
+
+You can keep Prometheus and Grafana data across full Kind cluster resets.
+
+Prereq (once on the host):
+```bash
+sudo mkdir -p /srv/kind-monitoring/{prometheus,grafana}
+sudo chmod -R 777 /srv/kind-monitoring
+```
+
+Run the installer with persistence enabled:
+```bash
+./reset_testbed.sh --cluster-type kind --persist-monitoring-data
+```
+
+What this does:
+- Mounts `/srv/kind-monitoring` into Kind nodes at `/mnt/monitoring`.
+- Creates PVs (Retain policy) for Prometheus and Grafana pointing to those paths.
+- Wires kube-prometheus-stack to reuse the same volumes after resets.
+
+After deleting/recreating the Kind cluster, re-running the script with the flag re-binds the data automatically.
+
+### Optional: Prometheus remote_write to external TSDB
+
+To decouple metrics from the cluster entirely, stream to an external TSDB (e.g., VictoriaMetrics/Thanos/Cortex):
+```bash
+./reset_testbed.sh \
+  --cluster-type kind \
+  --persist-monitoring-data \
+  --remote-write-url http://<external-tsdb>:8428/api/v1/write
+```
+
+Notes:
+- Persistence flag is currently implemented for Kind (hostPath). On minikube, behavior is unchanged.
+- You can use persistence and remote_write together.
 
 ### HPA Comparison Testing
 
