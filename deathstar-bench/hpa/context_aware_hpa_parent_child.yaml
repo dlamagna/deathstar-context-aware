@@ -23,13 +23,12 @@ spec:
   minReplicas: 1
   maxReplicas: 10
   metrics:
-    - type: External
-      external:
-        metric:
-          name: nginx_thrift_cpu_utilization_pct
+    - type: Resource
+      resource:
+        name: cpu
         target:
-          type: Value
-          value: 50000m
+          type: Utilization
+          averageUtilization: 50
 
 ---
 apiVersion: autoscaling/v2
@@ -44,13 +43,12 @@ spec:
   minReplicas: 1
   maxReplicas: 10
   metrics:
-    - type: External
-      external:
-        metric:
-          name: compose_post_parent_cpu_utilization_pct
+    - type: Resource
+      resource:
+        name: cpu
         target:
-          type: Value
-          value: 50000m
+          type: Utilization
+          averageUtilization: 50
 
 ---
 apiVersion: autoscaling/v2
