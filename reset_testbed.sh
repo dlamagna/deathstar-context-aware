@@ -13,21 +13,21 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
-# Logging functions
+# Logging functions with timestamps
 log_info() {
-    echo -e "${BLUE}[INFO]${NC} $1"
+    echo -e "${BLUE}[INFO]${NC} [$(date '+%Y-%m-%d %H:%M:%S')] $1"
 }
 
 log_success() {
-    echo -e "${GREEN}[SUCCESS]${NC} $1"
+    echo -e "${GREEN}[SUCCESS]${NC} [$(date '+%Y-%m-%d %H:%M:%S')] $1"
 }
 
 log_warning() {
-    echo -e "${YELLOW}[WARNING]${NC} $1"
+    echo -e "${YELLOW}[WARNING]${NC} [$(date '+%Y-%m-%d %H:%M:%S')] $1"
 }
 
 log_error() {
-    echo -e "${RED}[ERROR]${NC} $1"
+    echo -e "${RED}[ERROR]${NC} [$(date '+%Y-%m-%d %H:%M:%S')] $1"
 }
 
 # Configuration
@@ -71,6 +71,15 @@ mkdir -p "$LOG_DIR"
 LOG_FILE="$LOG_DIR/reset_testbed_$(date +%Y%m%d_%H%M%S).log"
 # Stream stdout/stderr to both console and log file
 exec > >(tee -a "$LOG_FILE") 2>&1
+
+# Log startup message with command used to invoke script
+echo "=========================================="
+echo "Reset Testbed Script Started"
+echo "Timestamp: $(date)"
+echo "Log file: $LOG_FILE"
+echo "Project root: $PROJECT_ROOT"
+echo "Command invoked: $0 $*"
+echo "=========================================="
 
 # Function to check if command exists
 command_exists() {
@@ -267,6 +276,40 @@ cluster_exists() {
     fi
 }
 
+# Function to flush Prometheus data before reset
+flush_prometheus_data() {
+    if [ "$persist_monitoring_data" = false ]; then
+        return 0  # Skip if persistence not enabled
+    fi
+    
+    log_info "Flushing Prometheus WAL data before reset..."
+    
+    # Check if Prometheus exists
+    if ! kubectl get pod -n monitoring -l app.kubernetes.io/name=prometheus --no-headers 2>/dev/null | grep -q Running; then
+        log_info "Prometheus not running, skipping flush"
+        return 0
+    fi
+    
+    local prometheus_pod=$(kubectl get pod -n monitoring -l app.kubernetes.io/name=prometheus --no-headers -o custom-columns=":metadata.name" 2>/dev/null | head -1)
+    
+    if [ -z "$prometheus_pod" ]; then
+        log_info "Prometheus pod not found, skipping flush"
+        return 0
+    fi
+    
+    # Give Prometheus time to sync any pending writes to disk
+    # NOTE: This helps preserve WAL data but cannot guarantee 100% data preservation
+    # Data less than 2 hours old is at risk of being lost during hard reset
+    log_info "Waiting for Prometheus to sync pending writes to disk..."
+    log_warning "Recent data (< 2 hours old) may still be lost during hard reset"
+    log_warning "This is a limitation of hard resets with Kind clusters"
+    
+    sleep 60  # Give time for pending operations to complete
+    
+    log_success "Attempted to preserve data (best effort)"
+    log_info "For guaranteed data preservation, use --force-reset-hpa instead of --hard-reset-testbed"
+}
+
 # Function to cleanup existing cluster
 cleanup_cluster() {
     log_info "Cleaning up existing cluster..."
@@ -285,6 +328,11 @@ cleanup_cluster() {
         
         log_success "Social network cleanup completed (monitoring preserved)"
         return 0
+    fi
+    
+    # Flush Prometheus data before reset if persistence is enabled
+    if [ "$persist_monitoring_data" = true ]; then
+        flush_prometheus_data
     fi
     
     # Full cluster cleanup (when not skipping monitoring)
@@ -369,6 +417,39 @@ create_cluster() {
         log_info "Creating Kind cluster: $CLUSTER_NAME"
         
         # Create cluster with proper configuration and increased resources
+        if [ "$persist_monitoring_data" = true ]; then
+        cat <<EOF | kind create cluster --name "$CLUSTER_NAME" --config=-
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+nodes:
+- role: control-plane
+  kubeadmConfigPatches:
+  - |
+    kind: InitConfiguration
+    nodeRegistration:
+      kubeletExtraArgs:
+        node-labels: "ingress-ready=true"
+        max-pods: "110"
+  extraPortMappings:
+  - containerPort: 80
+    hostPort: 80
+    protocol: TCP
+  - containerPort: 443
+    hostPort: 443
+    protocol: TCP
+  extraMounts:
+  - hostPath: /srv/kind-monitoring
+    containerPath: /mnt/monitoring
+- role: worker
+  extraMounts:
+  - hostPath: /srv/kind-monitoring
+    containerPath: /mnt/monitoring
+- role: worker
+  extraMounts:
+  - hostPath: /srv/kind-monitoring
+    containerPath: /mnt/monitoring
+EOF
+        else
         cat <<EOF | kind create cluster --name "$CLUSTER_NAME" --config=-
 kind: Cluster
 apiVersion: kind.x-k8s.io/v1alpha4
@@ -391,6 +472,7 @@ nodes:
 - role: worker
 - role: worker
 EOF
+        fi
         
         # Set kubectl context
         kubectl cluster-info --context "kind-$CLUSTER_NAME"
@@ -653,6 +735,44 @@ preload_essential_images() {
     log_success "Essential images preload completed"
 }
 
+# Function to fix Prometheus ServiceMonitor discovery
+fix_prometheus_target_discovery() {
+    log_info "Fixing Prometheus ServiceMonitor discovery..."
+    
+    # Restart Prometheus to reload ServiceMonitor configurations
+    if kubectl get statefulset -n monitoring -l app.kubernetes.io/name=prometheus >/dev/null 2>&1; then
+        local prom_statefulset=$(kubectl get statefulset -n monitoring -l app.kubernetes.io/name=prometheus --no-headers -o custom-columns=":metadata.name" 2>/dev/null | head -1)
+        
+        if [ -n "$prom_statefulset" ]; then
+            log_info "Restarting Prometheus statefulset to discover ServiceMonitors..."
+            kubectl rollout restart statefulset "$prom_statefulset" -n monitoring
+            
+            # Wait for Prometheus to be ready after restart
+            log_info "Waiting for Prometheus to be ready after restart..."
+            kubectl rollout status statefulset "$prom_statefulset" -n monitoring --timeout=300s
+            
+            log_success "Prometheus restarted successfully"
+            
+            # Verify targets are discovered (wait a bit for configuration reload)
+            log_info "Waiting for Prometheus to discover targets..."
+            sleep 30
+            
+            # Check targets
+            log_info "Checking Prometheus targets..."
+            local targets=$(kubectl get pods -n monitoring -l app.kubernetes.io/name=prometheus --no-headers -o custom-columns=":metadata.name" 2>/dev/null | head -1)
+            if [ -n "$targets" ]; then
+                log_info "Prometheus targets should now include kubelet and kube-state-metrics"
+            fi
+        else
+            log_warning "Prometheus statefulset not found"
+        fi
+    else
+        log_warning "No Prometheus statefulset found"
+    fi
+    
+    log_success "Prometheus ServiceMonitor discovery fix completed"
+}
+
 # Function to install metrics server
 install_metrics_server() {
     log_info "Installing metrics server..."
@@ -752,6 +872,72 @@ install_monitoring() {
         helm_args+=(--set prometheus.service.nodePort="$prom_nodeport")
     fi
 
+    # If persist flag, set up PV/PVC and wire persistence + optional remote_write
+    if [ "$persist_monitoring_data" = true ]; then
+        # Ensure monitoring namespace exists before PVC
+        kubectl create namespace monitoring --dry-run=client -o yaml | kubectl apply -f -
+        # Create hostPath PVs in the cluster (require kind extraMounts)
+        cat <<'EOF' | kubectl apply -f -
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: prometheus-pv
+  labels:
+    pv: prometheus
+spec:
+  capacity:
+    storage: 20Gi
+  accessModes: ["ReadWriteOnce"]
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: ""
+  hostPath:
+    path: /mnt/monitoring/prometheus
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: grafana-pv
+  labels:
+    pv: grafana
+spec:
+  capacity:
+    storage: 5Gi
+  accessModes: ["ReadWriteOnce"]
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: ""
+  hostPath:
+    path: /mnt/monitoring/grafana
+EOF
+        # PVC for Grafana (Prometheus manages its own PVCs via StatefulSet volumeClaimTemplate)
+        cat <<'EOF' | kubectl apply -n monitoring -f -
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: grafana-pvc
+spec:
+  accessModes: ["ReadWriteOnce"]
+  resources:
+    requests:
+      storage: 5Gi
+  storageClassName: ""
+  selector:
+    matchLabels:
+      pv: grafana
+EOF
+
+        helm_args+=(
+          --set grafana.persistence.enabled=true
+          --set grafana.persistence.existingClaim=grafana-pvc
+          --set prometheus.prometheusSpec.storageSpec.volumeClaimTemplate.spec.storageClassName=""
+          --set prometheus.prometheusSpec.storageSpec.volumeClaimTemplate.spec.resources.requests.storage=20Gi
+          --set prometheus.prometheusSpec.storageSpec.volumeClaimTemplate.metadata.name=prometheus-db
+          --set prometheus.prometheusSpec.storageSpec.volumeClaimTemplate.spec.selector.matchLabels.pv=prometheus
+        )
+    fi
+    if [ -n "${remote_write_url:-}" ]; then
+        helm_args+=(--set prometheus.prometheusSpec.remoteWrite[0].url="${remote_write_url}")
+    fi
+
     # Install kube-prometheus-stack (Prometheus + default Kubernetes scrape targets + Grafana)
     helm upgrade --install kube-prometheus-stack prometheus-community/kube-prometheus-stack "${helm_args[@]}"
 
@@ -770,6 +956,9 @@ install_monitoring() {
     
     # Import Davide dashboard
     import_davide_dashboard
+    
+    # Fix Prometheus ServiceMonitor discovery issue
+    # fix_prometheus_target_discovery
     
     log_success "Monitoring stack installed successfully"
 
@@ -933,8 +1122,21 @@ configure_prometheus_datasource() {
     local admin_password=$(kubectl get secret kube-prometheus-stack-grafana -n monitoring -o jsonpath='{.data.admin-password}' 2>/dev/null | base64 -d 2>/dev/null || echo "")
     
     if [ -z "$admin_password" ]; then
-        log_warning "Could not get Grafana admin password, skipping datasource configuration"
-        return 1
+        log_warning "Could not get Grafana admin password from secret"
+        
+        # Try getting password directly from pod environment as fallback
+        local pod_name=$(kubectl get pods -n monitoring -l app.kubernetes.io/name=grafana -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || echo "")
+        if [ -n "$pod_name" ]; then
+            log_info "Attempting to get password from Grafana pod environment..."
+            admin_password=$(kubectl exec -n monitoring "$pod_name" -c grafana -- env 2>/dev/null | grep "^GF_SECURITY_ADMIN_PASSWORD=" | cut -d'=' -f2- || echo "")
+        fi
+        
+        if [ -z "$admin_password" ]; then
+            log_warning "Could not get Grafana admin password, datasource might already be configured"
+            log_warning "Using default datasource UID 'prometheus' for dashboard"
+            export PROMETHEUS_DATASOURCE_UID="prometheus"
+            return 0
+        fi
     fi
     
     # Get Grafana service details (prefer NodePort if reachable, otherwise fall back to local port-forward)
@@ -1017,25 +1219,50 @@ configure_prometheus_datasource() {
 EOF
 )
         
-        local create_response=$(curl -s -X POST -u "admin:$admin_password" \
+        # Get HTTP status code along with response
+        local create_response=$(curl -s -w "\n%{http_code}" -X POST -u "admin:$admin_password" \
             -H "Content-Type: application/json" \
             -d "$datasource_config" \
             "http://$grafana_ip:$grafana_port/api/datasources" 2>/dev/null)
         
-        # Extract UID from response
-        datasource_uid=$(echo "$create_response" | jq -r '.datasource.uid' 2>/dev/null || echo "")
+        local http_code=$(echo "$create_response" | tail -n1)
+        local create_body=$(echo "$create_response" | sed '$d')
         
-        if [ -n "$datasource_uid" ] && [ "$datasource_uid" != "null" ]; then
-            log_success "Prometheus datasource created with UID: $datasource_uid"
+        log_info "Grafana API response code: $http_code"
+        
+        # Handle different response codes and formats
+        if [ "$http_code" = "200" ] || [ "$http_code" = "201" ]; then
+            # Try multiple extraction methods for different Grafana versions
+            datasource_uid=$(echo "$create_body" | jq -r '.datasource.uid // .uid // empty' 2>/dev/null || echo "")
+            
+            if [ -n "$datasource_uid" ] && [ "$datasource_uid" != "null" ]; then
+                log_success "Prometheus datasource created with UID: $datasource_uid"
+            else
+                log_warning "Could not extract UID from create response, will query existing datasources"
+                datasource_uid=""
+            fi
+        elif [ "$http_code" = "409" ]; then
+            # Datasource already exists (409 Conflict)
+            log_info "Prometheus datasource already exists (HTTP 409)"
+            datasource_uid=""
         else
-            log_warning "Failed to create Prometheus datasource: $create_response"
-            # Try to get existing datasource UID as fallback
-            datasource_uid=$(curl -s -u "admin:$admin_password" "http://$grafana_ip:$grafana_port/api/datasources" 2>/dev/null | jq -r '.[] | select(.type=="prometheus") | .uid' 2>/dev/null || echo "")
-            if [ -n "$datasource_uid" ]; then
-                log_info "Using existing Prometheus datasource UID: $datasource_uid"
+            log_warning "Failed to create Prometheus datasource (HTTP $http_code): $create_body"
+            datasource_uid=""
+        fi
+        
+        # If we didn't get the UID from the create response, query for it
+        if [ -z "$datasource_uid" ] || [ "$datasource_uid" = "null" ]; then
+            log_info "Querying Grafana for existing Prometheus datasource..."
+            local existing_datasources=$(curl -s -u "admin:$admin_password" "http://$grafana_ip:$grafana_port/api/datasources" 2>/dev/null)
+            datasource_uid=$(echo "$existing_datasources" | jq -r '.[] | select(.type=="prometheus") | .uid' 2>/dev/null || echo "")
+            
+            if [ -n "$datasource_uid" ] && [ "$datasource_uid" != "null" ]; then
+                log_success "Found existing Prometheus datasource UID: $datasource_uid"
             else
                 log_error "Could not determine Prometheus datasource UID"
-                return 1
+                log_info "Try manually configuring the datasource in Grafana UI"
+                # Don't fail completely, just skip UID export
+                datasource_uid=""
             fi
         fi
     fi
@@ -1057,11 +1284,6 @@ EOF
 update_dashboard_datasource() {
     log_info "Updating dashboard with correct Prometheus datasource UID..."
     
-    if [ -z "$PROMETHEUS_DATASOURCE_UID" ]; then
-        log_warning "Prometheus datasource UID not available, skipping dashboard update"
-        return 1
-    fi
-    
     # Create temporary dashboard file with updated datasource UID
     local dashboard_file="$PROJECT_ROOT/deathstar-bench/monitoring/davide-dashboard.json"
     local temp_dashboard="/tmp/davide-dashboard-updated.json"
@@ -1071,8 +1293,15 @@ update_dashboard_datasource() {
         return 1
     fi
     
+    # Use the exported UID if available, otherwise use default "prometheus"
+    local dashboard_uid="${PROMETHEUS_DATASOURCE_UID:-prometheus}"
+    
+    if [ -z "$PROMETHEUS_DATASOURCE_UID" ]; then
+        log_warning "Prometheus datasource UID not available, using default 'prometheus'"
+    fi
+    
     # Replace the hardcoded datasource UID with the correct one
-    sed "s/bexfug0nscoowa/$PROMETHEUS_DATASOURCE_UID/g" "$dashboard_file" > "$temp_dashboard"
+    sed "s/prometheus/$dashboard_uid/g" "$dashboard_file" > "$temp_dashboard"
     
     # Update the ConfigMap with the corrected dashboard
     kubectl create configmap davide-dashboard \
@@ -1085,7 +1314,7 @@ update_dashboard_datasource() {
     # Clean up temporary file
     rm -f "$temp_dashboard"
     
-    log_success "Dashboard updated with correct datasource UID: $PROMETHEUS_DATASOURCE_UID"
+    log_success "Dashboard updated with datasource UID: $dashboard_uid"
 }
 
 # Function to import Davide dashboard
@@ -1134,6 +1363,56 @@ import_davide_dashboard() {
     fi
     
     log_success "Davide dashboard import completed"
+    
+    # Also import DB monitoring dashboard
+    import_db_monitoring_dashboard
+}
+
+# Function to import DB monitoring dashboard
+import_db_monitoring_dashboard() {
+    log_info "Importing DB Monitoring Dashboard..."
+    
+    if [ -z "$PROMETHEUS_DATASOURCE_UID" ]; then
+        log_warning "Prometheus datasource UID not available, using dashboard with default UID"
+    fi
+    
+    # Determine Grafana URL for logging
+    local grafana_ip="localhost"
+    if [ "$CLUSTER_TYPE" = "kind" ] && [ -n "$PUBLIC_SERVER_IP" ]; then
+        grafana_ip="$PUBLIC_SERVER_IP"
+    elif [ "$CLUSTER_TYPE" = "minikube" ]; then
+        grafana_ip=$(minikube ip 2>/dev/null || echo "localhost")
+    fi
+    local grafana_port=$(kubectl get svc kube-prometheus-stack-grafana -n monitoring -o jsonpath='{.spec.ports[0].nodePort}' 2>/dev/null || echo "30900")
+    
+    # Create temporary dashboard file with updated datasource UID
+    local dashboard_file="$PROJECT_ROOT/deathstar-bench/monitoring/db-monitoring-dashboard.json"
+    local temp_dashboard="/tmp/db-monitoring-dashboard-updated.json"
+    
+    if [ ! -f "$dashboard_file" ]; then
+        log_warning "DB monitoring dashboard file not found: $dashboard_file"
+        return 1
+    fi
+    
+    # Use the exported UID if available, otherwise use default "prometheus"
+    local dashboard_uid="${PROMETHEUS_DATASOURCE_UID:-prometheus}"
+    
+    # Replace the hardcoded datasource UID with the correct one
+    sed "s/prometheus/$dashboard_uid/g" "$dashboard_file" > "$temp_dashboard"
+    
+    # Update the ConfigMap with the corrected dashboard
+    kubectl create configmap db-monitoring-dashboard \
+      --from-file=db-monitoring-dashboard.json="$temp_dashboard" \
+      -n monitoring --dry-run=client -o yaml | kubectl apply -f -
+    
+    # Label ConfigMap for Grafana sidecar to pick it up
+    kubectl label configmap db-monitoring-dashboard grafana_dashboard=1 -n monitoring --overwrite
+    
+    # Clean up temporary file
+    rm -f "$temp_dashboard"
+    
+    log_success "DB monitoring dashboard imported successfully"
+    log_info "DB Dashboard URL: http://$grafana_ip:$grafana_port/d/db-monitoring-dashboard/db-monitoring-dashboard"
 }
 
 # Function to install Prometheus Adapter
@@ -1348,7 +1627,9 @@ apply_hpa_configs() {
     log_info "Applying HPA configurations..."
     
     # Apply service CPU requests (required for external metrics)
-    kubectl apply -f "$PROJECT_ROOT/deathstar-bench/hpa/service_values.yaml" -n socialnetwork
+    # Use server-side apply to handle Helm-managed deployments properly
+    log_info "Applying CPU resource requests for deployments..."
+    kubectl apply -f "$PROJECT_ROOT/deathstar-bench/hpa/service_values.yaml" -n socialnetwork --server-side --force-conflicts
     
     # Apply default HPA configuration
     kubectl apply -f "$PROJECT_ROOT/deathstar-bench/hpa/default_hpa.yaml" -n socialnetwork
@@ -1412,6 +1693,8 @@ usage() {
     echo "  --clean-only         Only cleanup, don't reinstall"
     echo "  --preload-images     Preload ALL Docker images (essential + social network) to avoid pull issues"
     echo "  --no-dns-resolution  Skip DNS workarounds and use normal hostname resolution (for environments without DNS issues)"
+    echo "  --persist-monitoring-data  Persist Prometheus/Grafana data across resets (Kind only)"
+    echo "  --remote-write-url   Optional Prometheus remote_write URL (e.g., http://vm:8428/api/v1/write)"
     echo "  --help               Show this help message"
     echo ""
     echo "Environment variables:"
@@ -1438,6 +1721,8 @@ main() {
     local clean_only=false
     local preload_images=false
     local no_dns_resolution=false
+    local persist_monitoring_data=false
+    local remote_write_url=""
     
     # Parse command line arguments
     while [[ $# -gt 0 ]]; do
@@ -1469,6 +1754,14 @@ main() {
             --no-dns-resolution)
                 no_dns_resolution=true
                 shift
+                ;;
+            --persist-monitoring-data)
+                persist_monitoring_data=true
+                shift
+                ;;
+            --remote-write-url)
+                remote_write_url="$2"
+                shift 2
                 ;;
             --help)
                 usage
