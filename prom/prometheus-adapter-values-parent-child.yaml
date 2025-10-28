@@ -79,7 +79,7 @@ rules:
     metricsQuery: |
       sum(rate(container_cpu_usage_seconds_total{namespace="socialnetwork", container="nginx-thrift"}[2m]))
       /
-      sum(kube_pod_container_resource_limits{resource="cpu", namespace="socialnetwork", container="nginx-thrift"}) * 100
+      sum(kube_pod_container_resource_requests{resource="cpu", namespace="socialnetwork", container="nginx-thrift"}) * 100
 
   # CPU utilization percent for compose-post-service
   - seriesQuery: 'container_cpu_usage_seconds_total{namespace="socialnetwork", pod=~"compose-post-service-.*"}'
@@ -92,7 +92,7 @@ rules:
     metricsQuery: |
       sum(rate(container_cpu_usage_seconds_total{namespace="socialnetwork", container="compose-post-service"}[2m]))
       /
-      sum(kube_pod_container_resource_limits{resource="cpu", namespace="socialnetwork", container="compose-post-service"}) * 100
+      sum(kube_pod_container_resource_requests{resource="cpu", namespace="socialnetwork", container="compose-post-service"}) * 100
 
   # CPU utilization percent for text-service
   - seriesQuery: 'container_cpu_usage_seconds_total{namespace="socialnetwork", pod=~"text-service-.*"}'
@@ -105,7 +105,7 @@ rules:
     metricsQuery: |
       sum(rate(container_cpu_usage_seconds_total{namespace="socialnetwork", container="text-service"}[2m]))
       /
-      sum(kube_pod_container_resource_limits{resource="cpu", namespace="socialnetwork", container="text-service"}) * 100
+      sum(kube_pod_container_resource_requests{resource="cpu", namespace="socialnetwork", container="text-service"}) * 100
 
   # CPU utilization percent for user-mention-service
   - seriesQuery: 'container_cpu_usage_seconds_total{namespace="socialnetwork", pod=~"user-mention-service-.*"}'
@@ -118,7 +118,7 @@ rules:
     metricsQuery: |
       sum(rate(container_cpu_usage_seconds_total{namespace="socialnetwork", container="user-mention-service"}[2m]))
       /
-      sum(kube_pod_container_resource_limits{resource="cpu", namespace="socialnetwork", container="user-mention-service"}) * 100
+      sum(kube_pod_container_resource_requests{resource="cpu", namespace="socialnetwork", container="user-mention-service"}) * 100
 
   # ===== NEW PARENT-CHILD SCALING METRICS =====
   # compose-post-service scales based on nginx-thrift CPU (parent: nginx-thrift)
@@ -132,7 +132,7 @@ rules:
     metricsQuery: |
       sum(rate(container_cpu_usage_seconds_total{namespace="socialnetwork", container="nginx-thrift"}[2m]))
       /
-      sum(kube_pod_container_resource_limits{resource="cpu", namespace="socialnetwork", container="nginx-thrift"}) * 100
+      sum(kube_pod_container_resource_requests{resource="cpu", namespace="socialnetwork", container="nginx-thrift"}) * 100
 
   # text-service scales based on compose-post-service CPU (parent: compose-post-service)
   - seriesQuery: 'container_cpu_usage_seconds_total{namespace="socialnetwork"}'
@@ -145,7 +145,7 @@ rules:
     metricsQuery: |
       sum(rate(container_cpu_usage_seconds_total{namespace="socialnetwork", container="compose-post-service"}[2m]))
       /
-      sum(kube_pod_container_resource_limits{resource="cpu", namespace="socialnetwork", container="compose-post-service"}) * 100
+      sum(kube_pod_container_resource_requests{resource="cpu", namespace="socialnetwork", container="compose-post-service"}) * 100
 
   # user-mention-service scales based on text-service CPU (parent: text-service)
   - seriesQuery: 'container_cpu_usage_seconds_total{namespace="socialnetwork"}'
@@ -158,7 +158,50 @@ rules:
     metricsQuery: |
       sum(rate(container_cpu_usage_seconds_total{namespace="socialnetwork", container="text-service"}[2m]))
       /
-      sum(kube_pod_container_resource_limits{resource="cpu", namespace="socialnetwork", container="text-service"}) * 100
+      sum(kube_pod_container_resource_requests{resource="cpu", namespace="socialnetwork", container="text-service"}) * 100
+
+  # ===== COMBINED CHILD + PARENT UTILIZATION METRICS =====
+  # text-service + compose-post-service combined CPU utilization percent
+  - seriesQuery: 'container_cpu_usage_seconds_total{namespace="socialnetwork"}'
+    resources:
+      overrides:
+        namespace: {resource: "namespace"}
+    name:
+      matches: ".*"
+      as: "text_service_with_parent_cpu_utilization_pct"
+    metricsQuery: |
+      (
+        sum(rate(container_cpu_usage_seconds_total{namespace="socialnetwork", container="text-service"}[2m]))
+        +
+        sum(rate(container_cpu_usage_seconds_total{namespace="socialnetwork", container="compose-post-service"}[2m]))
+      )
+      /
+      (
+        sum(kube_pod_container_resource_requests{resource="cpu", namespace="socialnetwork", container="text-service"})
+        +
+        sum(kube_pod_container_resource_requests{resource="cpu", namespace="socialnetwork", container="compose-post-service"})
+      ) * 100
+
+  # user-mention-service + text-service combined CPU utilization percent
+  - seriesQuery: 'container_cpu_usage_seconds_total{namespace="socialnetwork"}'
+    resources:
+      overrides:
+        namespace: {resource: "namespace"}
+    name:
+      matches: ".*"
+      as: "user_mention_with_parent_cpu_utilization_pct"
+    metricsQuery: |
+      (
+        sum(rate(container_cpu_usage_seconds_total{namespace="socialnetwork", container="user-mention-service"}[2m]))
+        +
+        sum(rate(container_cpu_usage_seconds_total{namespace="socialnetwork", container="text-service"}[2m]))
+      )
+      /
+      (
+        sum(kube_pod_container_resource_requests{resource="cpu", namespace="socialnetwork", container="user-mention-service"})
+        +
+        sum(kube_pod_container_resource_requests{resource="cpu", namespace="socialnetwork", container="text-service"})
+      ) * 100
 
   default: false
   existing: null
