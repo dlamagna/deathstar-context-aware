@@ -320,6 +320,7 @@ run_k6_test() {
     local k6_cmd="k6 run -q k6/k6_loader.js --out csv=\"$output_file\" 2> \"$k6_log_file\""
     
     print_status "k6 warnings and errors will be logged to: $k6_log_file"
+    print_status "k6 request timeout for this run: ${K6_TIMEOUT}"
     
     # print_status "=== Starting k6 Load Test with Real-time Metrics ==="
     # print_status "Key metrics to watch:"
