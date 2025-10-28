@@ -28,7 +28,7 @@ export const options = {
     vus: STAGE_TARGET,  // Maximum VUs to allocate
 };
 
-const nginx_host = __ENV.NGINX_HOST || '147.83.130.183:32000';//'147.83.130.67:30177'
+const nginx_host = __ENV.NGINX_HOST || '172.18.0.2:31031'; //'147.83.130.67:30177'
 const baseURL = `http://${nginx_host}/wrk2-api/post/compose`;
 
 function generatePostData(userIndex) {
