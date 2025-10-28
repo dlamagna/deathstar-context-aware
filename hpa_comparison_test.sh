@@ -21,6 +21,15 @@ mkdir -p "$LOG_DIR"
 LOG_FILE="$LOG_DIR/hpa_comparison_$(date +%Y%m%d_%H%M%S).log"
 exec > >(tee -a "$LOG_FILE") 2>&1
 
+# Log startup message with command used to invoke script
+echo "=========================================="
+echo "HPA Comparison Test Script Started"
+echo "Timestamp: $(date)"
+echo "Log file: $LOG_FILE"
+echo "Project root: $PROJECT_ROOT"
+echo "Command invoked: $0 $*"
+echo "=========================================="
+
 # Color codes for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -28,21 +37,21 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
-# Function to print colored output
+# Function to print colored output with timestamps
 print_status() {
-    echo -e "${BLUE}[INFO]${NC} $1"
+    echo -e "${BLUE}[INFO]${NC} [$(date '+%Y-%m-%d %H:%M:%S')] $1"
 }
 
 print_success() {
-    echo -e "${GREEN}[SUCCESS]${NC} $1"
+    echo -e "${GREEN}[SUCCESS]${NC} [$(date '+%Y-%m-%d %H:%M:%S')] $1"
 }
 
 print_warning() {
-    echo -e "${YELLOW}[WARNING]${NC} $1"
+    echo -e "${YELLOW}[WARNING]${NC} [$(date '+%Y-%m-%d %H:%M:%S')] $1"
 }
 
 print_error() {
-    echo -e "${RED}[ERROR]${NC} $1"
+    echo -e "${RED}[ERROR]${NC} [$(date '+%Y-%m-%d %H:%M:%S')] $1"
 }
 
 # Function to show usage
@@ -64,8 +73,14 @@ show_usage() {
     echo "  K6_DURATION     - k6 test duration (default: 120s)"
     echo "  K6_TARGET       - k6 target VUs (default: 50)"
     echo "  K6_TIMEOUT      - k6 request timeout (default: 5s)"
-    echo "  K6_TIMEOUT_HPA1 - k6 timeout for first HPA test (default: 5s)"
-    echo "  K6_TIMEOUT_HPA2 - k6 timeout for second HPA test (default: 5s)"
+    echo ""
+    echo "  HPA-specific overrides (take precedence over global values):"
+    echo "  K6_TIMEOUT_HPA1  - k6 timeout for first HPA test"
+    echo "  K6_TIMEOUT_HPA2  - k6 timeout for second HPA test"
+    echo "  K6_DURATION_HPA1 - k6 duration for first HPA test"
+    echo "  K6_DURATION_HPA2 - k6 duration for second HPA test"
+    echo "  K6_TARGET_HPA1   - k6 target VUs for first HPA test"
+    echo "  K6_TARGET_HPA2   - k6 target VUs for second HPA test"
     echo ""
     echo "Example:"
     echo "  $0 deathstar-bench/hpa/default_hpa.yaml deathstar-bench/hpa/context_aware_hpa_values.yaml parity_test"
@@ -84,6 +99,9 @@ show_usage() {
     echo ""
     echo "Example with different timeouts per HPA:"
     echo "  K6_TIMEOUT_HPA1=5s K6_TIMEOUT_HPA2=10s $0 deathstar-bench/hpa/default_hpa.yaml deathstar-bench/hpa/context_aware_hpa_values.yaml timeout_test"
+    echo ""
+    echo "Example with global timeout applied to both HPAs:"
+    echo "  K6_TIMEOUT=10s $0 deathstar-bench/hpa/default_hpa.yaml deathstar-bench/hpa/context_aware_hpa_values.yaml long_timeout_test"
     exit 1
 }
 
@@ -293,11 +311,28 @@ run_k6_test() {
     # Print k6 stage information
     print_k6_stages
     
-    # Run k6 with full output capture
-    local k6_cmd="k6 run k6/k6_loader.js --out csv=\"$output_file\""
+    # Create log file for k6 warnings/errors (messages starting with "time=")
+    local k6_log_file="$LOG_DIR/k6_test_$(date +%Y%m%d_%H%M%S)_$$.log"
+    
+    # Run k6 with silent mode and redirect stderr to log file only
+    # This suppresses progress output and captures error messages to the log file
+    # while still showing the final summary (stdout) on the terminal
+    local k6_cmd="k6 run -q k6/k6_loader.js --out csv=\"$output_file\" 2> \"$k6_log_file\""
+    
+    print_status "k6 warnings and errors will be logged to: $k6_log_file"
+    
+    # print_status "=== Starting k6 Load Test with Real-time Metrics ==="
+    # print_status "Key metrics to watch:"
+    # print_status "  - http_req_duration: Request duration statistics (avg, min, max, percentiles)"
+    # print_status "  - http_reqs: Total requests per second"
+    # print_status "  - http_req_failed: Failed request percentage"
+    # print_status "  - checks: Check pass/fail rate"
+    # print_status "=========================================="
     
     if run_with_logging "$k6_cmd" "k6 load test: $test_desc"; then
         print_success "k6 test completed successfully: $test_desc"
+        print_status "k6 errors/warnings saved to: $k6_log_file"
+
     else
         print_error "k6 test failed: $test_desc"
         exit 1
@@ -324,10 +359,6 @@ apply_hpa() {
     
     # Reset HPA recommendations if needed
     reset_hpa_recommendations
-    
-    # Show HPA status
-    print_status "Current HPA status:"
-    kubectl get hpa -n socialnetwork
 }
 
 # Function to reset HPA recommendations
@@ -470,7 +501,7 @@ hard_reset_testbed() {
     print_status "=== Hard Reset: Calling reset_testbed.sh for Full Testbed Reset ==="
     
     # Check if reset_testbed.sh exists
-    local reset_script="deathstar-bench/deploy/reset_testbed.sh"
+    local reset_script="./reset_testbed.sh"
     if [ ! -f "$reset_script" ]; then
         print_error "reset_testbed.sh script not found at: $reset_script"
         print_error "Please ensure the script exists before using --hard-reset-testbed"
@@ -483,28 +514,12 @@ hard_reset_testbed() {
     # Make script executable
     chmod +x "$reset_script"
     
-    # Call reset_testbed.sh with appropriate parameters
-    # We'll use minikube as default cluster type, but this could be made configurable
-    local cluster_type="minikube"
+    # Use the exact command specified by the user
+    local reset_cmd="$reset_script --cluster-type kind --no-dns-resolution --persist-monitoring-data"
     
-    # Check if we're running in Kind environment
-    if kubectl config current-context | grep -q "kind"; then
-        cluster_type="kind"
-    fi
+    print_status "Running: $reset_cmd"
     
-    print_status "Detected cluster type: $cluster_type"
-    print_status "Running: $reset_script --cluster-type $cluster_type"
-    
-    # Add --no-dns-resolution flag if specified
-    local reset_args="--cluster-type $cluster_type"
-    if [ "$NO_DNS_RESOLUTION" = true ]; then
-        reset_args="$reset_args --no-dns-resolution"
-        print_status "Using --no-dns-resolution flag for testbed reset"
-    fi
-    
-    print_status "Running: $reset_script $reset_args"
-    
-    if "$reset_script" $reset_args; then
+    if eval "$reset_cmd"; then
         print_success "Hard reset completed successfully"
         print_status "Testbed has been completely rebuilt"
         
@@ -554,6 +569,47 @@ check_prometheus() {
     fi
 }
 
+# Function to install Python dependencies
+install_python_dependencies() {
+    print_status "Checking Python dependencies for k6 analysis scripts..."
+    
+    # Check if pip is available
+    if ! command -v pip3 &> /dev/null; then
+        print_error "pip3 not found. Please install pip3 first."
+        print_error "On Ubuntu/Debian: sudo apt install python3-pip"
+        print_error "On CentOS/RHEL: sudo yum install python3-pip"
+        exit 1
+    fi
+    
+    # Check if dependencies are already installed
+    if python3 -c "import pandas, numpy, matplotlib" 2>/dev/null; then
+        print_success "Python dependencies already installed (pandas, numpy, matplotlib)"
+        return 0
+    fi
+    
+    print_status "Installing missing Python dependencies..."
+    
+    # Install dependencies from requirements.txt
+    if [ -f "k6/requirements.txt" ]; then
+        print_status "Installing dependencies from k6/requirements.txt..."
+        if pip3 install -r k6/requirements.txt --quiet; then
+            print_success "Python dependencies installed successfully"
+        else
+            print_error "Failed to install Python dependencies"
+            print_error "Please install manually: pip3 install pandas numpy matplotlib"
+            exit 1
+        fi
+    else
+        print_warning "requirements.txt not found, installing basic dependencies..."
+        if pip3 install pandas numpy matplotlib --quiet; then
+            print_success "Basic Python dependencies installed successfully"
+        else
+            print_error "Failed to install basic Python dependencies"
+            exit 1
+        fi
+    fi
+}
+
 # Function to run command with full logging capture
 run_with_logging() {
     local cmd="$1"
@@ -563,8 +619,20 @@ run_with_logging() {
     print_status "Command: $cmd"
     
     # Run command and capture both stdout and stderr, while also displaying them
+    # Enhanced to highlight k6 metrics
     eval "$cmd" 2>&1 | while IFS= read -r line; do
-        echo "$line"  # This will go to the log file via the script's output redirection
+        # Highlight k6 metrics with special formatting
+        if echo "$line" | grep -q "http_req_duration.*avg=\|http_reqs.*[0-9]/s\|http_req_failed.*[0-9]%\|checks.*[0-9]%"; then
+            echo -e "${GREEN}[METRICS]${NC} $line"
+        elif echo "$line" | grep -q "running\|paused\|stopped"; then
+            echo -e "${BLUE}[STATUS]${NC} $line"
+        elif echo "$line" | grep -q "✓\|✗"; then
+            echo -e "${YELLOW}[CHECK]${NC} $line"
+        elif echo "$line" | grep -q "TOTAL RESULTS\|HTTP\|EXECUTION\|NETWORK"; then
+            echo -e "${BLUE}[SUMMARY]${NC} $line"
+        else
+            echo "$line"  # Regular output
+        fi
     done
     
     return ${PIPESTATUS[0]}
@@ -624,8 +692,10 @@ generate_enhanced_reports() {
 run_cluster_hpa_analysis() {
     print_status "Running cluster HPA analysis..."
     
-    # Create ConfigMap with the cluster analyzer script
-    kubectl create configmap cluster-hpa-analyzer --from-file=k6/cluster_hpa_analyzer.py -n socialnetwork --dry-run=client -o yaml | kubectl apply -f - >/dev/null 2>&1
+    # Note: This function is called from within run_comparison() which has cd'd into k6 directory
+    # So we need to get back to the parent directory to reference the file with k6/ prefix
+    # Create ConfigMap with the cluster analyzer script (using absolute path or relative from project root)
+    kubectl create configmap cluster-hpa-analyzer --from-file=cluster_hpa_analyzer.py -n socialnetwork --dry-run=client -o yaml | kubectl apply -f - >/dev/null 2>&1
     
     print_status "Running HPA metrics analysis inside cluster..."
     
@@ -674,12 +744,17 @@ run_cluster_hpa_analysis() {
 analyze_hpa_scaling() {
     print_status "Analyzing HPA scaling behavior..."
     
-    local enhanced_hpa1="k6/reports/enhanced/${TEST_NAME}_hpa1_enhanced.csv"
-    local enhanced_hpa2="k6/reports/enhanced/${TEST_NAME}_hpa2_enhanced.csv"
+    # Note: This function is called from within run_comparison() which has cd'd into k6 directory
+    # So we use relative paths from the k6 directory
+    local enhanced_hpa1="reports/enhanced/${TEST_NAME}_hpa1_enhanced.csv"
+    local enhanced_hpa2="reports/enhanced/${TEST_NAME}_hpa2_enhanced.csv"
     
     # Check if enhanced reports exist
     if [ ! -f "$enhanced_hpa1" ] || [ ! -f "$enhanced_hpa2" ]; then
         print_warning "Enhanced reports not available - skipping HPA scaling analysis"
+        print_status "Looking for files: $enhanced_hpa1 and $enhanced_hpa2"
+        print_status "Current directory: $(pwd)"
+        ls -la reports/enhanced/ 2>/dev/null || print_warning "Enhanced reports directory does not exist"
         return 1
     fi
     
@@ -687,9 +762,10 @@ analyze_hpa_scaling() {
     run_cluster_hpa_analysis
     
     # Run HPA scaling analysis using the dedicated Python script
-    if [ -f "k6/hpa_metrics_analyzer.py" ]; then
+    # Note: We're in the k6 directory at this point, so use relative path
+    if [ -f "hpa_metrics_analyzer.py" ]; then
         local prom_url=$(get_prometheus_url)
-        local hpa_analysis_cmd="python3 k6/hpa_metrics_analyzer.py \
+        local hpa_analysis_cmd="python3 hpa_metrics_analyzer.py \
             --hpa1 \"$enhanced_hpa1\" \
             --hpa2 \"$enhanced_hpa2\" \
             --prom \"$prom_url\" \
@@ -742,8 +818,12 @@ run_comparison() {
 main() {
     print_status "=== HPA Comparison Test Started ==="
     
-    # Step 0: Apply Prometheus Adapter values
-    print_status "Step 0: Applying Prometheus Adapter configuration..."
+    # Step 0: Install Python dependencies
+    print_status "Step 0: Installing Python dependencies..."
+    install_python_dependencies
+    
+    # Step 1: Apply Prometheus Adapter values
+    print_status "Step 1: Applying Prometheus Adapter configuration..."
     if [ -f "prom/prometheus-adapter-values-parent-child.yaml" ]; then
         # Get Prometheus service IP to avoid DNS issues
         local prom_ip=$(kubectl get svc kube-prometheus-stack-prometheus -n monitoring -o jsonpath='{.spec.clusterIP}' 2>/dev/null)
@@ -766,22 +846,47 @@ main() {
         print_warning "Continuing without updating adapter configuration..."
     fi
     
-    # Step 1: Apply service values (CPU requests)
-    print_status "Step 1: Ensuring CPU requests are set for all services..."
-    kubectl apply -f deathstar-bench/hpa/service_values.yaml -n socialnetwork
+    # Step 2: Apply service values (CPU requests) using server-side apply
+    print_status "Step 2: Ensuring CPU requests are set for all services..."
+    kubectl apply -f deathstar-bench/hpa/service_values.yaml -n socialnetwork --server-side --force-conflicts
     print_success "Service CPU requests applied"
     
-    # Step 2: Test with first HPA configuration
+    # Step 3: Test with first HPA configuration
     print_status "=== Testing HPA Configuration 1 ==="
     apply_hpa "$HPA1_FILE" "HPA Configuration 1"
     wait_for_hpa_to_stabilize
     print_status "=== Current replica status after first test setup==="
     kubectl get deploy -n socialnetwork | grep -E "(nginx-thrift|compose-post-service|text-service|user-mention-service)"
     wait_for_stabilization
-    export K6_TIMEOUT="${K6_TIMEOUT_HPA1:-5s}"
+    print_status "=== HPA status before k6 test (HPA1) ==="
+    kubectl get hpa -n socialnetwork
+    # Use HPA1-specific timeout if set, otherwise use global K6_TIMEOUT, otherwise default to 5s
+    if [ -n "${K6_TIMEOUT_HPA1:-}" ]; then
+        export K6_TIMEOUT="$K6_TIMEOUT_HPA1"
+    elif [ -n "${K6_TIMEOUT:-}" ]; then
+        export K6_TIMEOUT="$K6_TIMEOUT"
+    else
+        export K6_TIMEOUT="5s"
+    fi
+    # Apply same logic for other variables
+    if [ -n "${K6_DURATION_HPA1:-}" ]; then
+        export K6_DURATION="$K6_DURATION_HPA1"
+    elif [ -n "${K6_DURATION:-}" ]; then
+        export K6_DURATION="$K6_DURATION"
+    else
+        export K6_DURATION="120s"
+    fi
+    if [ -n "${K6_TARGET_HPA1:-}" ]; then
+        export K6_TARGET="$K6_TARGET_HPA1"
+    elif [ -n "${K6_TARGET:-}" ]; then
+        export K6_TARGET="$K6_TARGET"
+    else
+        export K6_TARGET="50"
+    fi
+    print_status "HPA1 Configuration: K6_TIMEOUT=$K6_TIMEOUT, K6_DURATION=$K6_DURATION, K6_TARGET=$K6_TARGET"
     run_k6_test "$HPA1_OUTPUT" "HPA Configuration 1"
-    
-    # Step 3: Reset deployments for clean state
+    sleep 60s
+    # Step 4: Reset deployments for clean state
     if [ "$HARD_RESET_TESTBED" = true ]; then
         print_status "Using hard reset approach (full testbed reset)"
         hard_reset_testbed
@@ -795,7 +900,7 @@ main() {
     print_status "=== Current replica status after reset ==="
     kubectl get deploy -n socialnetwork | grep -E "(nginx-thrift|compose-post-service|text-service|user-mention-service)"
     
-    # Step 4: Test with second HPA configuration
+    # Step 5: Test with second HPA configuration
     print_status "=== Testing HPA Configuration 2 ==="
     apply_hpa "$HPA2_FILE" "HPA Configuration 2"
     wait_for_hpa_to_stabilize
@@ -804,16 +909,47 @@ main() {
     wait_for_stabilization
     print_status "=== Current replica status after second test setup ==="
     kubectl get deploy -n socialnetwork | grep -E "(nginx-thrift|compose-post-service|text-service|user-mention-service)"
-    export K6_TIMEOUT="${K6_TIMEOUT_HPA2:-5s}"
+    print_status "=== HPA status before k6 test (HPA2) ==="
+    kubectl get hpa -n socialnetwork
+    # Use HPA2-specific timeout if set, otherwise use global K6_TIMEOUT, otherwise default to 5s
+    if [ -n "${K6_TIMEOUT_HPA2:-}" ]; then
+        export K6_TIMEOUT="$K6_TIMEOUT_HPA2"
+    elif [ -n "${K6_TIMEOUT:-}" ]; then
+        export K6_TIMEOUT="$K6_TIMEOUT"
+    else
+        export K6_TIMEOUT="5s"
+    fi
+    # Apply same logic for other variables
+    if [ -n "${K6_DURATION_HPA2:-}" ]; then
+        export K6_DURATION="$K6_DURATION_HPA2"
+    elif [ -n "${K6_DURATION:-}" ]; then
+        export K6_DURATION="$K6_DURATION"
+    else
+        export K6_DURATION="120s"
+    fi
+    if [ -n "${K6_TARGET_HPA2:-}" ]; then
+        export K6_TARGET="$K6_TARGET_HPA2"
+    elif [ -n "${K6_TARGET:-}" ]; then
+        export K6_TARGET="$K6_TARGET"
+    else
+        export K6_TARGET="50"
+    fi
+    print_status "HPA2 Configuration: K6_TIMEOUT=$K6_TIMEOUT, K6_DURATION=$K6_DURATION, K6_TARGET=$K6_TARGET"
     run_k6_test "$HPA2_OUTPUT" "HPA Configuration 2"
     
-    # Step 5: Run comparison
+    # Step 6: Run comparison
     print_status "=== Running Comparison Analysis ==="
     run_comparison
     
     print_success "=== HPA Comparison Test Completed Successfully ==="
     print_status "=== Final replica status ==="
     kubectl get deploy -n socialnetwork | grep -E "(nginx-thrift|compose-post-service|text-service|user-mention-service)"
+    
+    # Display final metrics summary for both tests
+    print_status ""
+    print_status "=== Final Metrics Summary ==="
+    print_status "HTTP Request Duration Metrics Comparison:"
+    
     print_status "Test results:"
     print_status "  HPA1 results: $HPA1_OUTPUT"
     print_status "  HPA2 results: $HPA2_OUTPUT"
@@ -822,9 +958,10 @@ main() {
     print_status "  Enhanced reports: k6/reports/enhanced/"
     print_status ""
     print_status "=== Analysis Summary ==="
-    print_status "✅ Standard k6 comparison completed"
-    print_status "✅ Enhanced reports with HPA metrics generated (if Prometheus available)"
-    print_status "✅ HPA scaling behavior analysis completed"
+    print_status "[OK] Standard k6 comparison completed"
+    print_status "[OK] Enhanced reports with HPA metrics generated (if Prometheus available)"
+    print_status "[OK] HPA scaling behavior analysis completed"
+    print_status "[OK] HTTP request duration metrics displayed on screen"
     print_status ""
     print_status "To view detailed HPA scaling analysis, check the enhanced reports in:"
     print_status "  k6/reports/enhanced/${TEST_NAME}_hpa1_enhanced.csv"
