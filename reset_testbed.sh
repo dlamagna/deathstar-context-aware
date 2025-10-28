@@ -86,6 +86,31 @@ command_exists() {
     command -v "$1" >/dev/null 2>&1
 }
 
+# Function to start port-forward script in background
+start_port_forward_background() {
+    local pf_script="$PROJECT_ROOT/port-forward.sh"
+    if [ ! -f "$pf_script" ]; then
+        log_warning "Port-forward script not found: $pf_script"
+        return 0
+    fi
+
+    # Avoid duplicate background runs
+    if pgrep -f "bash .*port-forward.sh" >/dev/null 2>&1 || pgrep -f "/bin/bash .*port-forward.sh" >/dev/null 2>&1; then
+        log_info "port-forward.sh already running; skipping start"
+        return 0
+    fi
+
+    # Ensure monitoring namespace exists before starting
+    if ! kubectl get ns monitoring >/dev/null 2>&1; then
+        log_warning "Namespace 'monitoring' not present yet; delaying port-forward start"
+        return 0
+    fi
+
+    local pf_log="$LOG_DIR/port_forward_$(date +%Y%m%d_%H%M%S).log"
+    log_info "Starting port-forward.sh in background (logs: $pf_log)"
+    nohup bash "$pf_script" > "$pf_log" 2>&1 &
+}
+
 # Function to check if image exists locally in Docker
 image_exists_locally() {
     local image="$1"
@@ -961,6 +986,9 @@ EOF
     # fix_prometheus_target_discovery
     
     log_success "Monitoring stack installed successfully"
+
+    # Start port-forwarding in background
+    start_port_forward_background
 
     # Output current NodePorts
     local current_grafana_np=$(kubectl get svc kube-prometheus-stack-grafana -n monitoring -o jsonpath='{.spec.ports[0].nodePort}' 2>/dev/null || kubectl get svc grafana -n monitoring -o jsonpath='{.spec.ports[0].nodePort}' 2>/dev/null || echo "")
@@ -1839,6 +1867,8 @@ main() {
     else
         log_info "Preserving existing monitoring stack (--skip-monitoring flag set)"
         log_info "Monitoring stack should already be running from previous installation"
+        # Ensure port-forwarding is running in background even when preserving monitoring
+        start_port_forward_background
     fi
     
     # Deploy social network application (if not skipped)
