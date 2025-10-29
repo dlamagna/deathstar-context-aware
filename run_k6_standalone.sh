@@ -335,6 +335,9 @@ print_status "=========================================="
 K6_LOG_FILE="$LOG_DIR/k6_test_$(date +%Y%m%d_%H%M%S)_$$.log"
 print_status "k6 warnings and errors will be logged to: $K6_LOG_FILE"
 
+# Log the effective k6 timeout that will be used in this run
+print_status "k6 request timeout for this run: ${K6_TIMEOUT}"
+
 # Run k6 with silent mode and redirect stderr to log file only
 # This suppresses progress output and captures error messages to the log file
 # while still showing the final summary (stdout) on the terminal
