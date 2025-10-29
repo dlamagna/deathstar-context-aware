@@ -163,11 +163,12 @@ if [ ! -f "$HPA2_FILE" ]; then
     exit 1
 fi
 
-# Set output file names
+# Set output file names with timestamp
+TIMESTAMP=$(date +%Y%m%d_%H%M%S)
 OUTPUT_DIR="k6/reports"
-HPA1_OUTPUT="${OUTPUT_DIR}/${TEST_NAME}_hpa1.csv"
-HPA2_OUTPUT="${OUTPUT_DIR}/${TEST_NAME}_hpa2.csv"
-COMPARISON_OUTPUT="${OUTPUT_DIR}/${TEST_NAME}_comparison.json"
+HPA1_OUTPUT="${OUTPUT_DIR}/${TEST_NAME}_hpa1_${TIMESTAMP}.csv"
+HPA2_OUTPUT="${OUTPUT_DIR}/${TEST_NAME}_hpa2_${TIMESTAMP}.csv"
+COMPARISON_OUTPUT="${OUTPUT_DIR}/${TEST_NAME}_comparison_${TIMESTAMP}.json"
 
 print_status "Starting HPA Comparison Test: $TEST_NAME"
 print_status "HPA1: $HPA1_FILE"
@@ -657,12 +658,12 @@ generate_enhanced_reports() {
     # Generate enhanced report for HPA1
     print_status "Generating enhanced report for HPA1..."
     local cmd1="python3 enhanced_report.py \
-        --k6-csv \"reports/${TEST_NAME}_hpa1.csv\" \
+        --k6-csv \"reports/${TEST_NAME}_hpa1_${TIMESTAMP}.csv\" \
         --prom \"$prom_url\" \
         --namespace socialnetwork \
         --services $services \
         --bucket-sec 30 \
-        --out \"reports/enhanced/${TEST_NAME}_hpa1_enhanced.csv\""
+        --out \"reports/enhanced/${TEST_NAME}_hpa1_${TIMESTAMP}_enhanced.csv\""
     
     if run_with_logging "$cmd1" "Enhanced report generation for HPA1"; then
         print_success "Enhanced report for HPA1 generated"
@@ -673,12 +674,12 @@ generate_enhanced_reports() {
     # Generate enhanced report for HPA2
     print_status "Generating enhanced report for HPA2..."
     local cmd2="python3 enhanced_report.py \
-        --k6-csv \"reports/${TEST_NAME}_hpa2.csv\" \
+        --k6-csv \"reports/${TEST_NAME}_hpa2_${TIMESTAMP}.csv\" \
         --prom \"$prom_url\" \
         --namespace socialnetwork \
         --services $services \
         --bucket-sec 30 \
-        --out \"reports/enhanced/${TEST_NAME}_hpa2_enhanced.csv\""
+        --out \"reports/enhanced/${TEST_NAME}_hpa2_${TIMESTAMP}_enhanced.csv\""
     
     if run_with_logging "$cmd2" "Enhanced report generation for HPA2"; then
         print_success "Enhanced report for HPA2 generated"
@@ -747,8 +748,8 @@ analyze_hpa_scaling() {
     
     # Note: This function is called from within run_comparison() which has cd'd into k6 directory
     # So we use relative paths from the k6 directory
-    local enhanced_hpa1="reports/enhanced/${TEST_NAME}_hpa1_enhanced.csv"
-    local enhanced_hpa2="reports/enhanced/${TEST_NAME}_hpa2_enhanced.csv"
+    local enhanced_hpa1="reports/enhanced/${TEST_NAME}_hpa1_${TIMESTAMP}_enhanced.csv"
+    local enhanced_hpa2="reports/enhanced/${TEST_NAME}_hpa2_${TIMESTAMP}_enhanced.csv"
     
     # Check if enhanced reports exist
     if [ ! -f "$enhanced_hpa1" ] || [ ! -f "$enhanced_hpa2" ]; then
@@ -796,13 +797,13 @@ run_comparison() {
     
     # Run standard k6 comparison
     local comparison_cmd="python3 k6_report_comparison.py \
-        --a \"reports/${TEST_NAME}_hpa1.csv\" \
-        --b \"reports/${TEST_NAME}_hpa2.csv\" \
-        --out \"reports/${TEST_NAME}_comparison.json\""
+        --a \"reports/${TEST_NAME}_hpa1_${TIMESTAMP}.csv\" \
+        --b \"reports/${TEST_NAME}_hpa2_${TIMESTAMP}.csv\" \
+        --out \"reports/${TEST_NAME}_comparison_${TIMESTAMP}.json\""
     
     if run_with_logging "$comparison_cmd" "k6 report comparison analysis"; then
         print_success "Comparison completed successfully"
-        print_status "Results saved to: k6/reports/${TEST_NAME}_comparison.json"
+        print_status "Results saved to: k6/reports/${TEST_NAME}_comparison_${TIMESTAMP}.json"
         print_status "Plots saved to: k6/plots/"
     else
         print_error "Comparison failed"
@@ -965,8 +966,8 @@ main() {
     print_status "[OK] HTTP request duration metrics displayed on screen"
     print_status ""
     print_status "To view detailed HPA scaling analysis, check the enhanced reports in:"
-    print_status "  k6/reports/enhanced/${TEST_NAME}_hpa1_enhanced.csv"
-    print_status "  k6/reports/enhanced/${TEST_NAME}_hpa2_enhanced.csv"
+    print_status "  k6/reports/enhanced/${TEST_NAME}_hpa1_${TIMESTAMP}_enhanced.csv"
+    print_status "  k6/reports/enhanced/${TEST_NAME}_hpa2_${TIMESTAMP}_enhanced.csv"
 }
 
 # Run main function
