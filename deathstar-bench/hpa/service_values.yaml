@@ -10,9 +10,9 @@ spec:
       - name: compose-post-service
         resources:
           requests:
-            cpu: "100m"
+            cpu: "60m"
           limits:
-            cpu: "100m"
+            cpu: "60m"
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -26,9 +26,9 @@ spec:
       - name: text-service
         resources:
           requests:
-            cpu: "100m"
+            cpu: "60m"
           limits:
-            cpu: "100m"
+            cpu: "60m"
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -42,9 +42,9 @@ spec:
       - name: user-mention-service
         resources:
           requests:
-            cpu: "100m"
+            cpu: "60m"
           limits:
-            cpu: "100m"
+            cpu: "60m"
 ---
 apiVersion: apps/v1
 kind: Deployment
