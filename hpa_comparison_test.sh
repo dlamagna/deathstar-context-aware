@@ -315,30 +315,37 @@ run_k6_test() {
     # Create log file for k6 warnings/errors (messages starting with "time=")
     local k6_log_file="$LOG_DIR/k6_test_$(date +%Y%m%d_%H%M%S)_$$.log"
     
+    # Determine start/end window (±60s)
+    local K6_START_EPOCH=$(date +%s)
     # Run k6 with silent mode and redirect stderr to log file only
-    # This suppresses progress output and captures error messages to the log file
-    # while still showing the final summary (stdout) on the terminal
     local k6_cmd="k6 run -q k6/k6_loader.js --out csv=\"$output_file\" 2> \"$k6_log_file\""
     
     print_status "k6 warnings and errors will be logged to: $k6_log_file"
     print_status "k6 request timeout for this run: ${K6_TIMEOUT}"
     
-    # print_status "=== Starting k6 Load Test with Real-time Metrics ==="
-    # print_status "Key metrics to watch:"
-    # print_status "  - http_req_duration: Request duration statistics (avg, min, max, percentiles)"
-    # print_status "  - http_reqs: Total requests per second"
-    # print_status "  - http_req_failed: Failed request percentage"
-    # print_status "  - checks: Check pass/fail rate"
-    # print_status "=========================================="
-    
     if run_with_logging "$k6_cmd" "k6 load test: $test_desc"; then
         print_success "k6 test completed successfully: $test_desc"
         print_status "k6 errors/warnings saved to: $k6_log_file"
-
     else
         print_error "k6 test failed: $test_desc"
         exit 1
     fi
+    local K6_END_EPOCH=$(date +%s)
+
+    # Scrape Grafana dashboard queries (Prometheus) for the test window ±60s
+    local prom_url=$(get_prometheus_url)
+    local start_window=$((K6_START_EPOCH-60))
+    local end_window=$((K6_END_EPOCH+60))
+    mkdir -p k6/grafana/data k6/grafana/plots
+    print_status "Scraping Grafana dashboard queries for time window ${start_window}..${end_window} (±60s)"
+    python3 k6/scrape_grafana_dashboard.py \
+      --dashboard-json deathstar-bench/monitoring/davide-dashboard.json \
+      --prom "$prom_url" \
+      --start "$start_window" \
+      --end "$end_window" \
+      --ref-name "$TEST_NAME" \
+      --out-data-dir k6/grafana/data \
+      --out-plots-dir k6/grafana/plots || print_warning "Grafana scraping failed for $test_desc"
 }
 
 # Function to apply HPA and verify
@@ -542,12 +549,33 @@ hard_reset_testbed() {
 
 # Function to get Prometheus URL (IP-based workaround for DNS issues)
 get_prometheus_url() {
-    local prom_service_ip=$(kubectl get svc kube-prometheus-stack-prometheus -n monitoring -o jsonpath='{.spec.clusterIP}' 2>/dev/null)
-    if [ -n "$prom_service_ip" ]; then
-        echo "http://$prom_service_ip:9090"
-    else
-        echo "http://kube-prometheus-stack-prometheus.monitoring.svc:9090"
+    # If a local port-forward is open (common), prefer it
+    if wget -qO- --timeout=2 http://127.0.0.1:9090/-/ready >/dev/null 2>&1; then
+        echo "http://127.0.0.1:9090"
+        return
     fi
+    
+    local prom_service_ip=$(kubectl get svc kube-prometheus-stack-prometheus -n monitoring -o jsonpath='{.spec.clusterIP}' 2>/dev/null)
+    local candidate=""
+    if [ -n "$prom_service_ip" ]; then
+        candidate="http://$prom_service_ip:9090"
+    else
+        candidate="http://kube-prometheus-stack-prometheus.monitoring.svc:9090"
+    fi
+
+    # Try quick connectivity check from host; if unreachable, fall back to localhost via port-forward
+    if curl -sS --max-time 2 "$candidate/api/v1/query?query=up" >/dev/null 2>&1; then
+        echo "$candidate"
+        return
+    fi
+
+    # Start (or reuse) a port-forward to Prometheus on localhost:9090
+    if ! lsof -i :9090 -sTCP:LISTEN >/dev/null 2>&1; then
+        print_status "Starting temporary port-forward to Prometheus on localhost:9090 (connectivity fallback)"
+        kubectl -n monitoring port-forward svc/kube-prometheus-stack-prometheus 9090:9090 >/dev/null 2>&1 &
+        sleep 2
+    fi
+    echo "http://localhost:9090"
 }
 
 # Function to check if Prometheus is accessible
@@ -555,6 +583,17 @@ check_prometheus() {
     local prom_url=$(get_prometheus_url)
     print_status "Checking Prometheus accessibility at $prom_url..."
     
+    # If using local port-forward, check directly
+    if echo "$prom_url" | grep -qE '^http://(127\.0\.0\.1|localhost):9090'; then
+        if wget -qO- --timeout=2 "$prom_url/-/ready" >/dev/null 2>&1 || wget -qO- --timeout=2 "$prom_url/api/v1/status/buildinfo" >/dev/null 2>&1; then
+            print_success "Prometheus (port-forward) is accessible"
+            return 0
+        fi
+        print_warning "Local port-forward detected but not responding"
+        return 1
+    fi
+    
+    # Otherwise, verify in-cluster reachability
     if kubectl get pods -n monitoring -l app.kubernetes.io/name=prometheus --no-headers 2>/dev/null | grep -q Running; then
         print_success "Prometheus pod is running"
         # Test Prometheus API access from existing pod (workaround for DNS issues)
@@ -652,7 +691,7 @@ generate_enhanced_reports() {
     if ! check_prometheus; then
         print_warning "Prometheus not available - skipping enhanced reports"
         print_status "Enhanced reports will be generated with basic k6 metrics only"
-        return 1
+        return 0  # Return 0 to allow script to continue (skipping is not an error)
     fi
     
     # Generate enhanced report for HPA1
@@ -814,6 +853,39 @@ run_comparison() {
     analyze_hpa_scaling
     
     cd ..
+    
+    # Run latency breakdown comparison
+    print_status "Running latency breakdown comparison..."
+    local latency_cmp_dir="k6/comparison_output"
+    mkdir -p "$latency_cmp_dir"
+    
+    # Use absolute paths for CSV files (we're in project root after cd ..)
+    local hpa1_csv="${PROJECT_ROOT}/${OUTPUT_DIR}/${TEST_NAME}_hpa1_${TIMESTAMP}.csv"
+    local hpa2_csv="${PROJECT_ROOT}/${OUTPUT_DIR}/${TEST_NAME}_hpa2_${TIMESTAMP}.csv"
+    
+    # Get Prometheus URL for latency breakdown comparison
+    local prom_url=$(get_prometheus_url)
+    local latency_cmp_cmd="python3 ${PROJECT_ROOT}/python/compare_latency_breakdown.py \
+        --k6-csv1 \"$hpa1_csv\" \
+        --k6-csv2 \"$hpa2_csv\" \
+        --name1 \"HPA1\" \
+        --name2 \"HPA2\" \
+        --bucket-sec 30 \
+        --out-dir \"${PROJECT_ROOT}/$latency_cmp_dir\""
+    
+    # Add Prometheus URL if available
+    if [ -n "$prom_url" ]; then
+        if check_prometheus "$prom_url" 2>/dev/null; then
+            latency_cmp_cmd+=" --prom \"$prom_url\" --namespace socialnetwork --services nginx-thrift compose-post-service text-service user-mention-service"
+        fi
+    fi
+    
+    if run_with_logging "$latency_cmp_cmd" "Latency breakdown comparison"; then
+        print_success "Latency breakdown comparison completed"
+        print_status "Latency breakdown results saved to: $latency_cmp_dir/"
+    else
+        print_warning "Latency breakdown comparison failed (non-fatal)"
+    fi
 }
 
 # Main execution
@@ -958,16 +1030,23 @@ main() {
     print_status "  Comparison: $COMPARISON_OUTPUT"
     print_status "  Plots: k6/plots/"
     print_status "  Enhanced reports: k6/reports/enhanced/"
+    print_status "  Latency breakdown comparison: k6/comparison_output/"
     print_status ""
     print_status "=== Analysis Summary ==="
     print_status "[OK] Standard k6 comparison completed"
     print_status "[OK] Enhanced reports with HPA metrics generated (if Prometheus available)"
     print_status "[OK] HPA scaling behavior analysis completed"
+    print_status "[OK] Latency breakdown comparison completed"
     print_status "[OK] HTTP request duration metrics displayed on screen"
     print_status ""
     print_status "To view detailed HPA scaling analysis, check the enhanced reports in:"
     print_status "  k6/reports/enhanced/${TEST_NAME}_hpa1_${TIMESTAMP}_enhanced.csv"
     print_status "  k6/reports/enhanced/${TEST_NAME}_hpa2_${TIMESTAMP}_enhanced.csv"
+    print_status ""
+    print_status "To view latency breakdown comparison, check:"
+    print_status "  k6/comparison_output/latency_comparison.png"
+    print_status "  k6/comparison_output/waiting_time_comparison.png"
+    print_status "  k6/comparison_output/latency_comparison_detailed.csv"
 }
 
 # Run main function
