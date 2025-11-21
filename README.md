@@ -1,5 +1,7 @@
 # DeathstarBench Deployment
 
+> **Note:** This repository is a copy/fork of the original repository. For the original source, please visit: [bserracanta/Context-Aware-HPA](https://github.com/bserracanta/Context-Aware-HPA)
+
 This repository provides scripts to deploy the **Social Network** application from the [DeathStarBench](https://github.com/delimitrou/DeathStarBench) benchmark suite on a **Kubernetes cluster**, along with optional **monitoring** tools and our **Context-Aware HPA** (Horizontal Pod Autoscaler) configuration.
 
 ## Table of Contents
