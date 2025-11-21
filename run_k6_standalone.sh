@@ -243,6 +243,16 @@ print_k6_stages() {
     print_status "=========================================="
 }
 
+# Helper: Prometheus URL
+get_prometheus_url() {
+    local prom_service_ip=$(kubectl get svc kube-prometheus-stack-prometheus -n monitoring -o jsonpath='{.spec.clusterIP}' 2>/dev/null)
+    if [ -n "$prom_service_ip" ]; then
+        echo "http://$prom_service_ip:9090"
+    else
+        echo "http://kube-prometheus-stack-prometheus.monitoring.svc:9090"
+    fi
+}
+
 # Main execution
 print_status "Starting Standalone k6 Load Testing"
 print_status "HPA file: $HPA_FILE"
@@ -338,9 +348,10 @@ print_status "k6 warnings and errors will be logged to: $K6_LOG_FILE"
 # Log the effective k6 timeout that will be used in this run
 print_status "k6 request timeout for this run: ${K6_TIMEOUT}"
 
+# Record start epoch
+K6_START_EPOCH=$(date +%s)
+
 # Run k6 with silent mode and redirect stderr to log file only
-# This suppresses progress output and captures error messages to the log file
-# while still showing the final summary (stdout) on the terminal
 if k6 run -q k6/k6_loader.js --out csv="$OUTPUT_FILE" 2> "$K6_LOG_FILE"; then
     print_success "k6 test completed successfully"
     print_status "k6 errors/warnings saved to: $K6_LOG_FILE"
@@ -350,8 +361,29 @@ else
     exit 1
 fi
 
+K6_END_EPOCH=$(date +%s)
+
+# Step 12: Scrape Grafana dashboard queries for the run window (±60s)
+prom_url=$(get_prometheus_url)
+start_window=$((K6_START_EPOCH-60))
+end_window=$((K6_END_EPOCH+60))
+mkdir -p k6/grafana/data k6/grafana/plots
+# Use ref-name as base name of HPA file
+REF_NAME=$(basename "$HPA_FILE")
+print_status "Scraping Grafana dashboard queries for time window ${start_window}..${end_window} (±60s)"
+python3 k6/scrape_grafana_dashboard.py \
+  --dashboard-json deathstar-bench/monitoring/davide-dashboard.json \
+  --prom "$prom_url" \
+  --start "$start_window" \
+  --end "$end_window" \
+  --ref-name "$REF_NAME" \
+  --out-data-dir k6/grafana/data \
+  --out-plots-dir k6/grafana/plots || print_warning "Grafana scraping failed"
+
 print_status ""
 print_status "=========================================="
 print_status "Test completed!"
 print_status "Results saved to: $OUTPUT_FILE"
+print_status "Grafana data: k6/grafana/data"
+print_status "Grafana plots: k6/grafana/plots"
 print_status "=========================================="
