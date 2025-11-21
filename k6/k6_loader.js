@@ -15,16 +15,21 @@ import { randomIntBetween, randomString } from 'https://jslib.k6.io/k6-utils/1.4
 //     },
 // };
 
+const STAGE_TARGET = Number(__ENV.K6_TARGET || 40);
+const STAGE_DURATION = __ENV.K6_DURATION || '180s';
+const REQUEST_TIMEOUT = __ENV.K6_TIMEOUT || '5s';
+
 export const options = {
     stages: [
-      { duration: '1m', target: 20 },
-      { duration: '28m', target: 22 },
-      { duration: '1m', target: 1 },
+        { duration: '1m', target: Math.floor(STAGE_TARGET * 0.3) },  // 30% of target for warmup
+        { duration: STAGE_DURATION, target: STAGE_TARGET },          // Full target for main duration
+        { duration: '1m', target: 1 },                               // Cool down to 1
     ],
+    vus: STAGE_TARGET,  // Maximum VUs to allocate
 };
 
-const nginx_ip = 'localhost:8080';//'147.83.130.67:30177';
-const baseURL = `http://${nginx_ip}/wrk2-api/post/compose`;
+const nginx_host = __ENV.NGINX_HOST || '172.18.0.2:31031'; //'147.83.130.67:30177'
+const baseURL = `http://${nginx_host}/wrk2-api/post/compose`;
 
 function generatePostData(userIndex) {
     let text = randomString(256);
@@ -51,7 +56,7 @@ export default function () {
 
     let params = {
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        timeout: '1s',  // Add 1 second timeout here
+        timeout: REQUEST_TIMEOUT,  // Configurable timeout via K6_TIMEOUT environment variable
     };
 
     let res = http.post(baseURL, body, params);

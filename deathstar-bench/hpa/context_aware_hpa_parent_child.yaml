@@ -1,0 +1,94 @@
+# ===== PARENT-CHILD SCALING HPA CONFIGURATION =====
+# This configuration implements parent-child scaling where downstream services
+# scale based on their parent service's CPU utilization rather than their own.
+#
+# Service Chain:
+# nginx-thrift (entry point) -> compose-post-service -> text-service -> user-mention-service
+#
+# Scaling Logic:
+# - nginx-thrift: Scales based on its own CPU (no parent)
+# - compose-post-service: Scales based on its own CPU (first element of the chain)
+# - text-service: Scales based on compose-post-service CPU (parent: compose-post-service)
+# - user-mention-service: Scales based on text-service CPU (parent: text-service)
+
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: nginx-thrift-hpa
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: nginx-thrift
+  minReplicas: 1
+  maxReplicas: 10
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 50
+
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: compose-post-service-hpa
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: compose-post-service
+  minReplicas: 1
+  maxReplicas: 10
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 50
+
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: text-service-hpa
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: text-service
+  minReplicas: 1
+  maxReplicas: 10
+  metrics:
+    - type: External
+      external:
+        metric:
+          name: text_service_parent_cpu_utilization_pct
+        target:
+          type: Value
+          value: 50000m
+
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: user-mention-service-hpa
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: user-mention-service
+  minReplicas: 1
+  maxReplicas: 10
+  metrics:
+    - type: External
+      external:
+        metric:
+          name: user_mention_parent_cpu_utilization_pct
+        target:
+          type: Value
+          value: 50000m
+

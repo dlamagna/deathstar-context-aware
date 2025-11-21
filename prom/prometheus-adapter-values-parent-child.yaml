@@ -1,0 +1,246 @@
+COMPUTED VALUES:
+affinity: {}
+certManager:
+  caCertDuration: 43800h0m0s
+  certDuration: 8760h0m0s
+  enabled: false
+customAnnotations: {}
+customLabels: {}
+deploymentAnnotations: {}
+dnsConfig: {}
+env: []
+extraArguments: []
+extraContainers: []
+extraVolumeMounts: []
+extraVolumes: []
+hostNetwork:
+  enabled: false
+image:
+  pullPolicy: IfNotPresent
+  repository: registry.k8s.io/prometheus-adapter/prometheus-adapter
+  tag: ""
+listenPort: 6443
+livenessProbe:
+  httpGet:
+    path: /healthz
+    port: https
+    scheme: HTTPS
+  initialDelaySeconds: 30
+  timeoutSeconds: 5
+logLevel: 4
+metricsRelistInterval: 1m
+namespaceOverride: ""
+nodeSelector: {}
+podAnnotations: {}
+podDisruptionBudget:
+  enabled: false
+  maxUnavailable: 1
+  minAvailable: null
+podLabels: {}
+podSecurityContext:
+  fsGroup: 10001
+priorityClassName: ""
+prometheus:
+  path: ""
+  port: 9090
+  url: http://kube-prometheus-stack-prometheus.monitoring.svc
+psp:
+  annotations: {}
+  create: false
+rbac:
+  create: true
+  customMetrics:
+    resources:
+    - '*'
+  externalMetrics:
+    resources:
+    - '*'
+  useAuthReaderClusterRole: false
+readinessProbe:
+  httpGet:
+    path: /healthz
+    port: https
+    scheme: HTTPS
+  initialDelaySeconds: 30
+  timeoutSeconds: 5
+replicas: 1
+resources: {}
+rules:
+  external:
+  # ===== ORIGINAL SELF-SCALING METRICS =====
+  # CPU utilization percent for nginx-thrift (front of chain)
+  - seriesQuery: 'container_cpu_usage_seconds_total{namespace="socialnetwork", pod=~"nginx-thrift-.*"}'
+    resources:
+      overrides:
+        namespace: {resource: "namespace"}
+    name:
+      matches: ".*"
+      as: "nginx_thrift_cpu_utilization_pct"
+    metricsQuery: |
+      sum(rate(container_cpu_usage_seconds_total{namespace="socialnetwork", container="nginx-thrift"}[2m]))
+      /
+      sum(kube_pod_container_resource_requests{resource="cpu", namespace="socialnetwork", container="nginx-thrift"}) * 100
+
+  # CPU utilization percent for compose-post-service
+  - seriesQuery: 'container_cpu_usage_seconds_total{namespace="socialnetwork", pod=~"compose-post-service-.*"}'
+    resources:
+      overrides:
+        namespace: {resource: "namespace"}
+    name:
+      matches: ".*"
+      as: "compose_post_cpu_utilization_pct"
+    metricsQuery: |
+      sum(rate(container_cpu_usage_seconds_total{namespace="socialnetwork", container="compose-post-service"}[2m]))
+      /
+      sum(kube_pod_container_resource_requests{resource="cpu", namespace="socialnetwork", container="compose-post-service"}) * 100
+
+  # CPU utilization percent for text-service
+  - seriesQuery: 'container_cpu_usage_seconds_total{namespace="socialnetwork", pod=~"text-service-.*"}'
+    resources:
+      overrides:
+        namespace: {resource: "namespace"}
+    name:
+      matches: ".*"
+      as: "text_service_cpu_utilization_pct"
+    metricsQuery: |
+      sum(rate(container_cpu_usage_seconds_total{namespace="socialnetwork", container="text-service"}[2m]))
+      /
+      sum(kube_pod_container_resource_requests{resource="cpu", namespace="socialnetwork", container="text-service"}) * 100
+
+  # CPU utilization percent for user-mention-service
+  - seriesQuery: 'container_cpu_usage_seconds_total{namespace="socialnetwork", pod=~"user-mention-service-.*"}'
+    resources:
+      overrides:
+        namespace: {resource: "namespace"}
+    name:
+      matches: ".*"
+      as: "user_mention_cpu_utilization_pct"
+    metricsQuery: |
+      sum(rate(container_cpu_usage_seconds_total{namespace="socialnetwork", container="user-mention-service"}[2m]))
+      /
+      sum(kube_pod_container_resource_requests{resource="cpu", namespace="socialnetwork", container="user-mention-service"}) * 100
+
+  # ===== NEW PARENT-CHILD SCALING METRICS =====
+  # compose-post-service scales based on nginx-thrift CPU (parent: nginx-thrift)
+  - seriesQuery: 'container_cpu_usage_seconds_total{namespace="socialnetwork"}'
+    resources:
+      overrides:
+        namespace: {resource: "namespace"}
+    name:
+      matches: ".*"
+      as: "compose_post_parent_cpu_utilization_pct"
+    metricsQuery: |
+      sum(rate(container_cpu_usage_seconds_total{namespace="socialnetwork", container="nginx-thrift"}[2m]))
+      /
+      sum(kube_pod_container_resource_requests{resource="cpu", namespace="socialnetwork", container="nginx-thrift"}) * 100
+
+  # text-service scales based on compose-post-service CPU (parent: compose-post-service)
+  - seriesQuery: 'container_cpu_usage_seconds_total{namespace="socialnetwork"}'
+    resources:
+      overrides:
+        namespace: {resource: "namespace"}
+    name:
+      matches: ".*"
+      as: "text_service_parent_cpu_utilization_pct"
+    metricsQuery: |
+      sum(rate(container_cpu_usage_seconds_total{namespace="socialnetwork", container="compose-post-service"}[2m]))
+      /
+      sum(kube_pod_container_resource_requests{resource="cpu", namespace="socialnetwork", container="compose-post-service"}) * 100
+
+  # user-mention-service scales based on text-service CPU (parent: text-service)
+  - seriesQuery: 'container_cpu_usage_seconds_total{namespace="socialnetwork"}'
+    resources:
+      overrides:
+        namespace: {resource: "namespace"}
+    name:
+      matches: ".*"
+      as: "user_mention_parent_cpu_utilization_pct"
+    metricsQuery: |
+      sum(rate(container_cpu_usage_seconds_total{namespace="socialnetwork", container="text-service"}[2m]))
+      /
+      sum(kube_pod_container_resource_requests{resource="cpu", namespace="socialnetwork", container="text-service"}) * 100
+
+  # ===== COMBINED CHILD + PARENT UTILIZATION METRICS =====
+  # text-service + compose-post-service combined CPU utilization percent
+  - seriesQuery: 'container_cpu_usage_seconds_total{namespace="socialnetwork"}'
+    resources:
+      overrides:
+        namespace: {resource: "namespace"}
+    name:
+      matches: ".*"
+      as: "text_service_with_parent_cpu_utilization_pct"
+    metricsQuery: |
+      (
+        sum(rate(container_cpu_usage_seconds_total{namespace="socialnetwork", container="text-service"}[2m]))
+        +
+        sum(rate(container_cpu_usage_seconds_total{namespace="socialnetwork", container="compose-post-service"}[2m]))
+      )
+      /
+      (
+        sum(kube_pod_container_resource_requests{resource="cpu", namespace="socialnetwork", container="text-service"})
+        +
+        sum(kube_pod_container_resource_requests{resource="cpu", namespace="socialnetwork", container="compose-post-service"})
+      ) * 100
+
+  # user-mention-service + text-service combined CPU utilization percent
+  - seriesQuery: 'container_cpu_usage_seconds_total{namespace="socialnetwork"}'
+    resources:
+      overrides:
+        namespace: {resource: "namespace"}
+    name:
+      matches: ".*"
+      as: "user_mention_with_parent_cpu_utilization_pct"
+    metricsQuery: |
+      (
+        sum(rate(container_cpu_usage_seconds_total{namespace="socialnetwork", container="user-mention-service"}[2m]))
+        +
+        sum(rate(container_cpu_usage_seconds_total{namespace="socialnetwork", container="text-service"}[2m]))
+      )
+      /
+      (
+        sum(kube_pod_container_resource_requests{resource="cpu", namespace="socialnetwork", container="user-mention-service"})
+        +
+        sum(kube_pod_container_resource_requests{resource="cpu", namespace="socialnetwork", container="text-service"})
+      ) * 100
+
+  default: false
+  existing: null
+  custom: []
+securityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+    - ALL
+  readOnlyRootFilesystem: true
+  runAsNonRoot: true
+  runAsUser: 10001
+  seccompProfile:
+    type: RuntimeDefault
+service:
+  annotations: {}
+  ipDualStack:
+    enabled: false
+    ipFamilies:
+    - IPv6
+    - IPv4
+    ipFamilyPolicy: PreferDualStack
+  port: 443
+  type: ClusterIP
+serviceAccount:
+  annotations: {}
+  create: true
+  name: null
+startupProbe: {}
+strategy:
+  rollingUpdate:
+    maxSurge: 25%
+    maxUnavailable: 25%
+  type: RollingUpdate
+tls:
+  ca: '# Public CA file that signed the APIService'
+  certificate: '# Public key of the APIService'
+  enable: false
+  key: '# Private key of the APIService'
+tolerations: []
+topologySpreadConstraints: []
+
