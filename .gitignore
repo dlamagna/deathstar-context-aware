@@ -81,3 +81,5 @@ node_modules/
 venv/
 paper.pdf
 *.png
+
+k6/grafana
