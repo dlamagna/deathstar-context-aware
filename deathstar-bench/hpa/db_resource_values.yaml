@@ -1,0 +1,107 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: post-storage-mongodb
+  namespace: socialnetwork
+spec:
+  template:
+    spec:
+      containers:
+      - name: post-storage-mongodb
+        resources:
+          requests:
+            cpu: "100m"
+            memory: "512Mi"
+          limits:
+            cpu: "200m"
+            memory: "512Mi"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: social-graph-mongodb
+  namespace: socialnetwork
+spec:
+  template:
+    spec:
+      containers:
+      - name: social-graph-mongodb
+        resources:
+          requests:
+            cpu: "100m"
+            memory: "512Mi"
+          limits:
+            cpu: "200m"
+            memory: "512Mi"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: user-mongodb
+  namespace: socialnetwork
+spec:
+  template:
+    spec:
+      containers:
+      - name: user-mongodb
+        resources:
+          requests:
+            cpu: "100m"
+            memory: "512Mi"
+          limits:
+            cpu: "200m"
+            memory: "512Mi"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: user-timeline-mongodb
+  namespace: socialnetwork
+spec:
+  template:
+    spec:
+      containers:
+      - name: user-timeline-mongodb
+        resources:
+          requests:
+            cpu: "100m"
+            memory: "512Mi"
+          limits:
+            cpu: "200m"
+            memory: "512Mi"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: url-shorten-mongodb
+  namespace: socialnetwork
+spec:
+  template:
+    spec:
+      containers:
+      - name: url-shorten-mongodb
+        resources:
+          requests:
+            cpu: "100m"
+            memory: "512Mi"
+          limits:
+            cpu: "200m"
+            memory: "512Mi"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: media-mongodb
+  namespace: socialnetwork
+spec:
+  template:
+    spec:
+      containers:
+      - name: media-mongodb
+        resources:
+          requests:
+            cpu: "100m"
+            memory: "512Mi"
+          limits:
+            cpu: "200m"
+            memory: "512Mi"
