@@ -528,6 +528,12 @@ run_k6_test() {
               --unified-csv "$grafana_run_dir/unified_report.csv" \
               --out-dir "$run_plots_dir" \
               --label "$grafana_ref" || print_warning "4-panel overview failed for $test_desc"
+
+            # Summarize nginx-thrift CPU usage to help detect bottlenecks
+            print_status "Summarizing nginx-thrift CPU usage for bottleneck check..."
+            python3 k6/nginx_cpu_summary.py \
+              --unified "$grafana_run_dir/unified_report.csv" \
+              --label "$grafana_ref" || print_warning "nginx CPU summary failed (non-fatal)"
         fi
     else
         print_warning "Skipping k6+Grafana merge and per-run plots (no Grafana run directory found)"
@@ -570,7 +576,7 @@ apply_hpa() {
 reset_hpa_recommendations() {
     print_status "Resetting HPA recommendations..."
     
-    # Get current HPA status (only for autoscaled services, nginx-thrift is fixed at 10 replicas)
+    # Get current HPA status (only for downstream autoscaled services)
     kubectl get hpa -n socialnetwork -o json | jq -r '.items[] | select(.spec.scaleTargetRef.name | test("compose-post-service|text-service|user-mention-service")) | .metadata.name' | while read hpa_name; do
         if [ ! -z "$hpa_name" ]; then
             print_status "Resetting recommendations for $hpa_name"
@@ -583,10 +589,10 @@ reset_hpa_recommendations() {
 
 # Function to wait for HPA to reach baseline after applying new configuration
 wait_for_hpa_to_stabilize() {
-    # Baseline: nginx-thrift fixed at 10 replicas, downstream services at 1.
-    print_status "Waiting for HPA to reach baseline (nginx-thrift=10, others=1 replica)..."
+    # Baseline: downstream services at 1 replica; nginx-thrift is managed independently by its own HPA.
+    print_status "Waiting for HPA to reach baseline (downstream services at 1 replica)..."
     
-    # nginx-thrift is fixed; only downstream services are autoscaled by HPA.
+    # Only downstream services are checked here; nginx-thrift is not forced to a fixed replica count.
     local deployments=("compose-post-service" "text-service" "user-mention-service")
     local all_ready=false
     local max_attempts=20
@@ -616,7 +622,7 @@ wait_for_hpa_to_stabilize() {
     done
     
     if [ "$all_ready" = true ]; then
-        print_success "HPA has driven all downstream deployments to 1 replica (nginx-thrift remains fixed at 10)"
+        print_success "HPA has driven all downstream deployments to 1 replica"
     else
         print_warning "Timeout waiting for HPA to scale down, but continuing..."
     fi
@@ -625,11 +631,11 @@ wait_for_hpa_to_stabilize() {
     kubectl get deploy -n socialnetwork | grep -E "(nginx-thrift|compose-post-service|text-service|user-mention-service)"
 }
 
-# Function to wait for deployments to return to baseline (nginx-thrift=10, others=1)
+# Function to wait for deployments to return to baseline (downstream services at 1)
 wait_for_pods_to_reset() {
-    print_status "Waiting for deployments to return to baseline (nginx-thrift=10, others=1 replica)..."
+    print_status "Waiting for deployments to return to baseline (downstream services at 1 replica)..."
     
-    # nginx-thrift is fixed at 10 replicas; only downstream services are reset to 1
+    # Only downstream services are reset to 1; nginx-thrift is not forced to a fixed replica count
     local deployments=("compose-post-service" "text-service" "user-mention-service")
     local all_ready=false
     local max_attempts=30
@@ -656,7 +662,7 @@ wait_for_pods_to_reset() {
     done
     
     if [ "$all_ready" = true ]; then
-        print_success "Downstream deployments have returned to 1 replica (nginx-thrift remains fixed at 10)"
+        print_success "Downstream deployments have returned to 1 replica"
     else
         print_warning "Timeout waiting for replicas to scale down, but continuing..."
     fi
@@ -669,7 +675,7 @@ wait_for_pods_to_reset() {
 force_reset_deployments() {
     print_status "=== Force Resetting Deployments for Clean State ==="
     
-    # nginx-thrift is fixed at 10 replicas; only downstream services participate in force reset
+    # Only downstream services participate in force reset; nginx-thrift is left to its own HPA
     local deployments=("compose-post-service" "text-service" "user-mention-service")
     
     # Step 1: Delete all HPAs
@@ -677,8 +683,8 @@ force_reset_deployments() {
     kubectl delete hpa -n socialnetwork --all --ignore-not-found=true
     sleep 5
     
-    # Step 2: Scale downstream deployments to 1 replica (nginx-thrift stays at 10 via service_values.yaml)
-    print_status "Step 2: Scaling downstream deployments to 1 replica (nginx-thrift remains fixed at 10)..."
+    # Step 2: Scale downstream deployments to 1 replica
+    print_status "Step 2: Scaling downstream deployments to 1 replica..."
     for deployment in "${deployments[@]}"; do
         print_status "Scaling $deployment to 1 replica..."
         kubectl scale deployment "$deployment" -n socialnetwork --replicas=1
