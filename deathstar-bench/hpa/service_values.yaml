@@ -52,12 +52,13 @@ metadata:
   name: nginx-thrift
   namespace: socialnetwork
 spec:
+  replicas: 1
   template:
     spec:
       containers:
       - name: nginx-thrift
         resources:
           requests:
-            cpu: "100m"
+            cpu: "300m"
           limits:
-            cpu: "100m"
+            cpu: "300m"
