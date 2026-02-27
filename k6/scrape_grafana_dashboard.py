@@ -120,22 +120,24 @@ def save_panel_plot(ts: List[int], legend_to_values: Dict[str, List[float]], tit
 
 
 def overlay_panel(prom_url: str, panel: Dict[str, Any], start: int, end: int, step: int, ts_master: List[int], var_map: Dict[str, str]) -> Tuple[Dict[str, List[float]], Dict[str, List[float]]]:
-    # Returns: (legend_to_values_for_panel, global_col_values)
-    filtered = [t for t in panel['targets'] if 'nginx' not in t['legend'].lower()]
     legend_to_series: Dict[str, pd.DataFrame] = {}
-    for t in filtered:
+    for t in panel['targets']:
         expr = substitute_grafana_vars(t['expr'], var_map, step)
-        df = prom_query_range(prom_url, expr, start, end, step)
+        try:
+            df = prom_query_range(prom_url, expr, start, end, step)
+        except Exception as e:
+            print(f"  [WARN] query failed for '{t['legend']}': {e}", flush=True)
+            continue
         if df.empty:
+            print(f"  [WARN] empty result for '{t['legend']}' expr={expr[:120]}", flush=True)
             continue
         legend_to_series[t['legend']] = df
     legend_to_values: Dict[str, List[float]] = {}
-    global_cols: Dict[str, List[float]] = {}
     for legend, df in legend_to_series.items():
         aligned = pd.DataFrame({'ts': ts_master}).merge(df, on='ts', how='left')
         vals = aligned['value'].tolist()
         legend_to_values[legend] = vals
-    return legend_to_values, global_cols  # global_cols unused in current design
+    return legend_to_values, {}
 
 
 def build_variable_map(dashboard: Dict[str, Any]) -> Dict[str, str]:
@@ -188,6 +190,14 @@ def substitute_grafana_vars(expr: str, var_map: Dict[str, str], step: int) -> st
     return pattern.sub(replace_var, expr)
 
 
+def build_run_dir(out_dir: str, ref_name: str, start: int) -> str:
+    """Build output directory: <out_dir>/<YYYY-MM-DD>/<ref_name>_<HHMMSSz>/"""
+    day = datetime.utcfromtimestamp(start).strftime('%Y-%m-%d')
+    time_tag = datetime.utcfromtimestamp(start).strftime('%H%M%SZ')
+    run_folder = f"{sanitize_filename(ref_name)}_{time_tag}"
+    return os.path.join(out_dir, day, run_folder)
+
+
 def main():
     parser = argparse.ArgumentParser(description='Scrape Prometheus using Grafana dashboard queries and export master CSV + per-panel plots')
     parser.add_argument('--dashboard-json', required=True)
@@ -195,47 +205,70 @@ def main():
     parser.add_argument('--start', required=True, type=int, help='Start epoch seconds (k6 start - 60s)')
     parser.add_argument('--end', required=True, type=int, help='End epoch seconds (k6 end + 60s)')
     parser.add_argument('--ref-name', required=True, help='Reference name (TEST_NAME or descriptor)')
-    parser.add_argument('--out-data-dir', required=True)
-    parser.add_argument('--out-plots-dir', required=True)
+    parser.add_argument('--out-dir', default=None, help='Base output directory (default: k6/grafana relative to this script)')
+    # Legacy args kept for backward compat; ignored when --out-dir is set
+    parser.add_argument('--out-data-dir', default=None, help=argparse.SUPPRESS)
+    parser.add_argument('--out-plots-dir', default=None, help=argparse.SUPPRESS)
     parser.add_argument('--step', type=int, default=15, help='Step seconds for range queries')
     args = parser.parse_args()
 
-    os.makedirs(args.out_data_dir, exist_ok=True)
-    os.makedirs(args.out_plots_dir, exist_ok=True)
+    # Resolve output directories
+    if args.out_dir:
+        base_dir = args.out_dir
+    elif args.out_data_dir:
+        base_dir = os.path.dirname(args.out_data_dir.rstrip('/'))
+    else:
+        base_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'grafana')
+
+    run_dir = build_run_dir(base_dir, args.ref_name, args.start)
+    plots_dir = os.path.join(run_dir, 'plots')
+    os.makedirs(plots_dir, exist_ok=True)
 
     dashboard = load_dashboard(args.dashboard_json)
     panels = collect_panels(dashboard)
     var_map = build_variable_map(dashboard)
 
-    start_utc = format_utc_compact(args.start)
-
-    # Build master time index
     ts_master = build_master_index(args.start, args.end, args.step)
 
-    # Collect all data into a single column map: "<Panel>__<Legend>" -> values
     master_cols: Dict[str, List[float]] = {}
+    panels_ok = 0
+    panels_empty = 0
+    panels_error = 0
 
     for panel in panels:
         title = panel['title']
+        print(f"[INFO] Scraping panel: {title} ({len(panel['targets'])} targets)", flush=True)
         try:
             legend_to_values, _ = overlay_panel(args.prom, panel, args.start, args.end, args.step, ts_master, var_map)
         except Exception as e:
-            # note error marker column (and include a minimal hint in logs)
-            # We don't print here to keep script quiet for callers, but preserve a column to flag the failure
+            print(f"[ERROR] Panel '{title}' failed: {e}", flush=True)
             master_cols[f"{sanitize_filename(title)}__ERROR"] = [float('nan')] * len(ts_master)
+            panels_error += 1
             continue
-        # Save per-panel plot (from in-memory)
         if legend_to_values:
-            plot_path = os.path.join(args.out_plots_dir, f"{sanitize_filename(title)}_{sanitize_filename(args.ref_name)}_{start_utc}.png")
+            panels_ok += 1
+            plot_path = os.path.join(plots_dir, f"{sanitize_filename(title)}.png")
             save_panel_plot(ts_master, legend_to_values, title, plot_path)
-        # Add to master columns
+        else:
+            print(f"[WARN] Panel '{title}' returned no data", flush=True)
+            panels_empty += 1
         for legend, values in legend_to_values.items():
             col_name = f"{sanitize_filename(title)}__{sanitize_filename(legend)}"
             master_cols[col_name] = values
 
-    # Save one master CSV
-    master_csv = os.path.join(args.out_data_dir, f"grafana_master_{sanitize_filename(args.ref_name)}_{start_utc}.csv")
+    master_csv = os.path.join(run_dir, 'grafana_master.csv')
     save_master_csv(ts_master, master_cols, master_csv)
+
+    total = panels_ok + panels_empty + panels_error
+    print(f"\n[SUMMARY] Panels: {panels_ok}/{total} with data, {panels_empty} empty, {panels_error} errors", flush=True)
+    print(f"[SUMMARY] Master CSV columns: {2 + len(master_cols)} (ts + time_iso + {len(master_cols)} metrics)", flush=True)
+    print(f"[SUMMARY] Run directory: {run_dir}", flush=True)
+    if panels_ok == 0:
+        print("[WARN] No panels returned data! Check Prometheus connectivity and that metrics exist.", flush=True)
+        print(f"[WARN] Prometheus URL used: {args.prom}", flush=True)
+
+    # Machine-parseable line for callers to capture the run directory
+    print(f"GRAFANA_RUN_DIR={run_dir}", flush=True)
 
 
 if __name__ == '__main__':

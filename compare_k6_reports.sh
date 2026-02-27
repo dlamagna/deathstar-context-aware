@@ -89,11 +89,14 @@ run_with_logging() {
 
 get_prometheus_url() {
     if [ -n "$PROM_URL" ]; then echo "$PROM_URL"; return; fi
-    # If a local port-forward is open (common), prefer it
-    if wget -qO- --timeout=2 http://127.0.0.1:9090/-/ready >/dev/null 2>&1; then
-        echo "http://127.0.0.1:9090"; return;
-    fi
-    # Try clusterIP first (avoid DNS issues)
+    # port-forward.sh maps kube-prometheus-stack to localhost:9091
+    for port in 9091 9090; do
+        if curl -sS --max-time 3 "http://127.0.0.1:${port}/api/v1/query?query=up" >/dev/null 2>&1; then
+            echo "http://127.0.0.1:${port}"
+            return
+        fi
+    done
+    # Try clusterIP (avoid DNS issues)
     local svc_ip=$(kubectl get svc kube-prometheus-stack-prometheus -n monitoring -o jsonpath='{.spec.clusterIP}' 2>/dev/null || true)
     if [ -n "$svc_ip" ]; then echo "http://$svc_ip:9090"; else echo "http://kube-prometheus-stack-prometheus.monitoring.svc:9090"; fi
 }
@@ -101,16 +104,11 @@ get_prometheus_url() {
 check_prometheus() {
     local url="$1"
     print_status "Checking Prometheus at $url ..."
-    # If using local port-forward, check directly
-    if echo "$url" | grep -qE '^http://(127\.0\.0\.1|localhost):9090'; then
-        if wget -qO- --timeout=2 "$url/-/ready" >/dev/null 2>&1 || wget -qO- --timeout=2 "$url/api/v1/status/buildinfo" >/dev/null 2>&1; then
-            print_success "Prometheus (port-forward) is accessible"
-            return 0
-        fi
-        print_warning "Local port-forward detected but not responding"
-        return 1
+    if curl -sS --max-time 3 "$url/api/v1/query?query=up" >/dev/null 2>&1; then
+        print_success "Prometheus is accessible at $url"
+        return 0
     fi
-    # Otherwise, verify in-cluster reachability
+    # Fallback: verify in-cluster reachability
     if kubectl get pods -n monitoring -l app.kubernetes.io/name=prometheus --no-headers 2>/dev/null | grep -q Running; then
         print_success "Prometheus pod is running"
         if kubectl exec -n monitoring prometheus-kube-prometheus-stack-prometheus-0 -- wget -qO- "$url/api/v1/query?query=up" >/dev/null 2>&1; then

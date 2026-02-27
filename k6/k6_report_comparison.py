@@ -1,44 +1,110 @@
 import pandas as pd
+import matplotlib
+matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import os
+import sys
 import numpy as np
 import argparse
 from collections import defaultdict
 
+
+class _Tee:
+    """Duplicate writes to both the original stream and a file."""
+    def __init__(self, stream, filepath):
+        self._stream = stream
+        self._file = open(filepath, "w")
+    def write(self, data):
+        self._stream.write(data)
+        self._file.write(data)
+    def flush(self):
+        self._stream.flush()
+        self._file.flush()
+    def close(self):
+        self._file.close()
+
 # Parse command line arguments
-parser = argparse.ArgumentParser(description='Compare two k6 CSV reports')
-parser.add_argument('--a', '--base', dest='base_report', default='reports/report-name.csv',
+parser = argparse.ArgumentParser(
+    description='Compare two k6 CSV reports',
+    epilog='''Ad-hoc usage examples:
+  %(prog)s report_a.csv report_b.csv
+  %(prog)s report_a.csv report_b.csv --plots-dir ./my_comparison
+  %(prog)s --a report_a.csv --b report_b.csv --label-a "Context HPA" --label-b "Default HPA"
+''',
+    formatter_class=argparse.RawDescriptionHelpFormatter,
+)
+parser.add_argument('positional', nargs='*', metavar='CSV',
+                    help='Two k6 CSV files to compare (shorthand for --a / --b)')
+parser.add_argument('--a', '--base', dest='base_report', default=None,
                     help='Base report CSV file path')
-parser.add_argument('--b', '--comparison', dest='comparison_report', default='reports/deathstar_base_with_hpa.csv',
+parser.add_argument('--b', '--comparison', dest='comparison_report', default=None,
                     help='Comparison report CSV file path')
-parser.add_argument('--out', dest='output_file', default='reports/comparison_result.json',
-                    help='Output JSON file for comparison results')
+parser.add_argument('--label-a', dest='label_a', default=None,
+                    help='Label for base report (default: filename)')
+parser.add_argument('--label-b', dest='label_b', default=None,
+                    help='Label for comparison report (default: filename)')
+parser.add_argument('--out', dest='output_file', default=None,
+                    help='Output JSON file (default: <plots-dir>/comparison_result.json)')
+parser.add_argument('--plots-dir', dest='plots_dir', default=None,
+                    help='Directory to save comparison plots (default: auto-created next to CSVs)')
+parser.add_argument('--sample', dest='sample_size', type=int, default=None,
+                    help='Sample N rows per metric for faster analysis (default: use all data)')
 
 args = parser.parse_args()
 
-# Configuration - Use command line arguments or defaults
+# Resolve positional args: allow `script.py a.csv b.csv`
+if args.positional and len(args.positional) >= 2:
+    if not args.base_report:
+        args.base_report = args.positional[0]
+    if not args.comparison_report:
+        args.comparison_report = args.positional[1]
+
+if not args.base_report or not args.comparison_report:
+    parser.error("Two CSV files required. Use positional args or --a / --b.")
+
 BASE_REPORT = args.base_report
 COMPARISON_REPORT = args.comparison_report
-OUTPUT_FILE = args.output_file
 
-# Sampling configuration for speed
-SAMPLE_SIZE = 10000  # Number of rows to sample for analysis
-TIME_LIMIT = 1100    # Maximum time in seconds to analyze
+# Auto-generate friendly labels from filenames
+def _label_from_path(path):
+    name = os.path.splitext(os.path.basename(path))[0]
+    for suffix in ('_hpa1', '_hpa2'):
+        if suffix in name:
+            return suffix[1:].upper()
+    return name[-30:] if len(name) > 30 else name
+
+LABEL_A = args.label_a or _label_from_path(BASE_REPORT)
+LABEL_B = args.label_b or _label_from_path(COMPARISON_REPORT)
+
+# Auto-generate plots dir if not specified
+if args.plots_dir:
+    PLOTS_DIR = args.plots_dir
+else:
+    from datetime import datetime
+    tag = datetime.utcnow().strftime('%H%M%SZ')
+    parent = os.path.dirname(os.path.abspath(BASE_REPORT))
+    PLOTS_DIR = os.path.join(parent, f"comparison_{tag}")
+
+OUTPUT_FILE = args.output_file or os.path.join(PLOTS_DIR, 'comparison_result.json')
+
+SAMPLE_SIZE = args.sample_size  # None means use all data
+TIME_LIMIT = 1100               # Maximum time in seconds to analyze
 
 # Create plots directory if it doesn't exist
-os.makedirs('plots', exist_ok=True)
+os.makedirs(PLOTS_DIR, exist_ok=True)
+
+# Auto-save all stdout to a log file alongside the plots
+_tee = _Tee(sys.stdout, os.path.join(PLOTS_DIR, "comparison.log"))
+sys.stdout = _tee
 
 def extract_metric_data_fast(data, metric_name, sample_size=SAMPLE_SIZE):
-    """Extract timestamp and value pairs for a specific metric with sampling for speed"""
-    # Filter for the specific metric first
+    """Extract timestamp and value pairs for a specific metric, optionally sampling."""
     metric_rows = data[data.iloc[:, 0] == metric_name]
     
     if len(metric_rows) == 0:
         return [], []
     
-    # Sample the data if it's too large
-    if len(metric_rows) > sample_size:
-        # Use systematic sampling to get representative data
+    if sample_size is not None and len(metric_rows) > sample_size:
         step = len(metric_rows) // sample_size
         metric_rows = metric_rows.iloc[::step].head(sample_size)
     
@@ -196,7 +262,7 @@ def process_buckets(timestamps, latencies, bin_width):
     time_bins = [bin_index * bin_width for bin_index in sorted(buckets.keys())]
     return buckets, averaged_latencies, time_bins
 
-def create_simple_comparison_plots(latencies_base, latencies_comp, base_label, comp_label):
+def create_simple_comparison_plots(latencies_base, latencies_comp, base_label, comp_label, plots_dir=PLOTS_DIR):
     """Create simplified comparison plots for fast analysis"""
     
     # 1. Latency Distribution Comparison
@@ -209,7 +275,7 @@ def create_simple_comparison_plots(latencies_base, latencies_comp, base_label, c
     plt.legend()
     plt.grid(True, alpha=0.3)
     plt.tight_layout()
-    plt.savefig('plots/comparison_latency_distribution.png', dpi=300, bbox_inches='tight')
+    plt.savefig(os.path.join(plots_dir, 'comparison_latency_distribution.png'), dpi=300, bbox_inches='tight')
     plt.close()
     
     # 2. Simple metrics summary plot
@@ -248,16 +314,19 @@ def create_simple_comparison_plots(latencies_base, latencies_comp, base_label, c
     ax4.grid(True, alpha=0.3)
     
     plt.tight_layout()
-    plt.savefig('plots/comparison_metrics_summary.png', dpi=300, bbox_inches='tight')
+    plt.savefig(os.path.join(plots_dir, 'comparison_metrics_summary.png'), dpi=300, bbox_inches='tight')
     plt.close()
 
 # Main execution
 if __name__ == "__main__":
-    print(f"🚀 Fast K6 Report Comparison")
-    print(f"Base Report: {BASE_REPORT}")
-    print(f"Comparison Report: {COMPARISON_REPORT}")
-    print(f"Output File: {OUTPUT_FILE}")
-    print(f"Sampling {SAMPLE_SIZE} rows per metric for speed...")
+    print(f"🚀 K6 Report Comparison")
+    print(f"  [{LABEL_A}] {BASE_REPORT}")
+    print(f"  [{LABEL_B}] {COMPARISON_REPORT}")
+    print(f"Output: {PLOTS_DIR}/")
+    if SAMPLE_SIZE is not None:
+        print(f"Sampling {SAMPLE_SIZE} rows per metric for speed...")
+    else:
+        print(f"Using all data (no sampling)")
     
     # Load CSV files
     try:
@@ -270,8 +339,7 @@ if __name__ == "__main__":
         print(f"❌ Error: Could not find report file - {e}")
         exit(1)
     
-    # Extract metrics from both reports using fast sampling
-    print("⚡ Extracting metrics with sampling...")
+    print("⚡ Extracting metrics...")
     timestamps_base, latencies_base = extract_metric_data_fast(data_base, 'http_req_duration')
     _, http_reqs_base = extract_metric_data_fast(data_base, 'http_reqs')
     _, http_failed_base = extract_metric_data_fast(data_base, 'http_req_failed')
@@ -299,17 +367,17 @@ if __name__ == "__main__":
                                               checks_comp, data_sent_comp, data_received_comp, iterations_comp, iteration_duration_comp)
     
     # Print comparison metrics
-    base_label = "Base Report"
-    comp_label = "Comparison Report"
+    base_label = LABEL_A
+    comp_label = LABEL_B
     print_comparison_metrics(metrics_base, metrics_comp, base_label, comp_label)
     
     # Create simplified comparison plots (only if we have enough data)
     if latencies_base and latencies_comp:
         print("\n📈 Generating simplified comparison plots...")
-        create_simple_comparison_plots(latencies_base, latencies_comp, base_label, comp_label)
+        create_simple_comparison_plots(latencies_base, latencies_comp, base_label, comp_label, PLOTS_DIR)
         
         print(f"\n🎉 Fast comparison complete!")
-        print(f"📊 Comparison plots saved to 'plots/' directory:")
+        print(f"📊 Comparison plots saved to '{PLOTS_DIR}/':")
         print("- comparison_latency_distribution.png")
         print("- comparison_metrics_summary.png")
     else:
