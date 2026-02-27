@@ -1,0 +1,109 @@
+# ===== DUAL-METRIC CONTEXT-AWARE HPA CONFIGURATION =====
+#
+# Each downstream service has TWO independent metrics:
+#   1. Its OWN CPU utilization (self-preservation, type: Utilization)
+#   2. Its PARENT service's CPU utilization (proactive scaling, type: AverageValue)
+#
+# The HPA takes the MAX desired replica count from both metrics.
+# This avoids the dilution bug in the combined/pooled metric approach.
+#
+# IMPORTANT: The parent metric MUST use AverageValue, NOT Value.
+# With Value, the formula is: desired = ceil(currentReplicas * metric / target)
+# Since scaling the child doesn't reduce the parent's CPU, this feeds back
+# on itself and runs away to maxReplicas.
+# With AverageValue, the formula is: desired = ceil(metric / target)
+# This gives a stable replica target proportional to the parent's load.
+#
+# Service Chain:
+#   nginx-thrift (entry) -> compose-post -> text-service -> user-mention
+#
+# Parent metrics (defined in prometheus-adapter-values-parent-child.yaml):
+#   compose_post_parent_cpu_utilization_pct  = nginx-thrift per-pod CPU %
+#   text_service_parent_cpu_utilization_pct  = compose-post per-pod CPU %
+#   user_mention_parent_cpu_utilization_pct  = text-service per-pod CPU %
+#
+# AverageValue tuning guide:
+#   averageValue "25" → child gets ceil(parent_cpu / 25) replicas from parent signal
+#     parent at 50% → 2 child replicas, parent at 100% → 4 child replicas
+#   averageValue "50" → more conservative
+#     parent at 50% → 1 child replica, parent at 100% → 2 child replicas
+
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: compose-post-service-hpa
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: compose-post-service
+  minReplicas: 1
+  maxReplicas: 10
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 50
+    # - type: External
+    #   external:
+    #     metric:
+    #       name: compose_post_parent_cpu_utilization_pct
+    #     target:
+    #       type: AverageValue
+    #       averageValue: "25"
+
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: text-service-hpa
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: text-service
+  minReplicas: 1
+  maxReplicas: 10
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 50
+    - type: External
+      external:
+        metric:
+          name: text_service_parent_cpu_utilization_pct
+        target:
+          type: AverageValue
+          averageValue: "25"
+
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: user-mention-service-hpa
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: user-mention-service
+  minReplicas: 1
+  maxReplicas: 10
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 50
+    - type: External
+      external:
+        metric:
+          name: user_mention_parent_cpu_utilization_pct
+        target:
+          type: AverageValue
+          averageValue: "25"
