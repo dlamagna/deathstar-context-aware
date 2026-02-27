@@ -16,16 +16,18 @@ import { randomIntBetween, randomString } from 'https://jslib.k6.io/k6-utils/1.4
 // };
 
 const STAGE_TARGET = Number(__ENV.K6_TARGET || 40);
-const STAGE_DURATION = __ENV.K6_DURATION || '180s';
+const STAGE_DURATION = __ENV.K6_DURATION || '10m';
 const REQUEST_TIMEOUT = __ENV.K6_TIMEOUT || '5s';
 
 export const options = {
     stages: [
-        { duration: '1m', target: Math.floor(STAGE_TARGET * 0.3) },  // 30% of target for warmup
-        { duration: STAGE_DURATION, target: STAGE_TARGET },          // Full target for main duration
-        { duration: '1m', target: 1 },                               // Cool down to 1
+        { duration: '30s', target: Math.floor(STAGE_TARGET * 0.6) }, 
+        { duration: '30s', target: Math.floor(STAGE_TARGET * 0.9) },                    
+        { duration: STAGE_DURATION, target: STAGE_TARGET },           
+        { duration: '1m', target: 1 },                              
     ],
-    vus: STAGE_TARGET,  // Maximum VUs to allocate
+    startVUs: 0,
+    // vus: STAGE_TARGET,  // Maximum VUs to allocate
 };
 
 const nginx_host = __ENV.NGINX_HOST || '172.18.0.2:31031'; //'147.83.130.67:30177'
