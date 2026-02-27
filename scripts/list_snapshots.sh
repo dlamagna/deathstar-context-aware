@@ -29,7 +29,12 @@ log_error() {
 }
 
 # Configuration
-PROJECT_ROOT="/home/dlamagna/projects/Context-Aware-HPA"
+# Allow overriding PROJECT_ROOT via environment, otherwise derive it from this script's location
+if [ -z "${PROJECT_ROOT:-}" ]; then
+    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+fi
+
 SNAPSHOT_DIR="$PROJECT_ROOT/snapshots"
 
 # Function to display usage

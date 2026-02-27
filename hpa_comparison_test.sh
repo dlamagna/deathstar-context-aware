@@ -6,20 +6,24 @@
 #
 # Enhanced Logging Features:
 # - All script output is automatically logged to logs/hpa_comparison_YYYYMMDD_HHMMSS.log
-# - Python subprocess output (enhanced_report.py, k6_report_comparison.py, hpa_metrics_analyzer.py) 
+# - Python subprocess output (k6_report_comparison.py, scrape_grafana_dashboard.py)
 #   is captured and logged using the run_with_logging() function
 # - k6 test output is also captured and logged
-# - Cluster analysis output is captured and logged
 
 set -e  # Exit on any error
 
 # Logging to file (stream live to logs/ via tee)
 # All script output and Python subprocess output will be captured in the log file
+# Use line-buffered tee when available so output appears on terminal immediately
 PROJECT_ROOT="$(cd "$(dirname "$0")" && pwd)"
 LOG_DIR="$PROJECT_ROOT/logs"
 mkdir -p "$LOG_DIR"
 LOG_FILE="$LOG_DIR/hpa_comparison_$(date +%Y%m%d_%H%M%S).log"
-exec > >(tee -a "$LOG_FILE") 2>&1
+if command -v stdbuf >/dev/null 2>&1; then
+    exec > >(stdbuf -oL tee -a "$LOG_FILE") 2>&1
+else
+    exec > >(tee -a "$LOG_FILE") 2>&1
+fi
 
 # Log startup message with command used to invoke script
 echo "=========================================="
@@ -54,6 +58,45 @@ print_error() {
     echo -e "${RED}[ERROR]${NC} [$(date '+%Y-%m-%d %H:%M:%S')] $1"
 }
 
+# Apply service_values.yaml, optionally scaling CPU via SERVICE_CPU_MULT/CPU_MULT.
+apply_service_values_with_multiplier() {
+    local base_file="deathstar-bench/hpa/service_values.yaml"
+    local mult="${SERVICE_CPU_MULT:-${CPU_MULT:-1}}"
+
+    if [ ! -f "$base_file" ]; then
+        print_warning "Service values file not found at $base_file, skipping CPU scaling."
+        return 1
+    fi
+
+    # If multiplier is unset or effectively 1, apply as-is.
+    if [ -z "$mult" ] || [ "$mult" = "1" ] || [ "$mult" = "1.0" ]; then
+        print_status "Applying service CPU values without scaling (multiplier=${mult:-1})..."
+        kubectl apply -f "$base_file" -n socialnetwork --server-side --force-conflicts
+        return $?
+    fi
+
+    print_status "Applying service CPU values with multiplier $mult (compose/text/mention/nginx)..."
+
+    # Scale any cpu: "<number>m" lines by the multiplier. This keeps YAML structure intact.
+    local tmp_file
+    tmp_file=$(mktemp)
+    awk -v mult="$mult" '
+        /cpu: *"[0-9]+m"/ {
+            if (match($0, /"([0-9]+)m"/, m)) {
+                v = int(m[1] * mult + 0.5);
+                if (v < 1) v = 1;
+                sub(/"[0-9]+m"/, "\"" v "m\"");
+            }
+        }
+        { print }
+    ' "$base_file" > "$tmp_file"
+
+    kubectl apply -f "$tmp_file" -n socialnetwork --server-side --force-conflicts
+    local rc=$?
+    rm -f "$tmp_file"
+    return $rc
+}
+
 # Function to show usage
 show_usage() {
     echo "Usage: $0 <hpa1.yaml> <hpa2.yaml> <test_name> [--force-reset-hpa] [--hard-reset-testbed] [--no-dns-resolution]"
@@ -70,9 +113,11 @@ show_usage() {
     echo "  --help        - Show this help message"
     echo ""
     echo "Environment Variables (optional):"
-    echo "  K6_DURATION     - k6 test duration (default: 120s)"
-    echo "  K6_TARGET       - k6 target VUs (default: 50)"
-    echo "  K6_TIMEOUT      - k6 request timeout (default: 5s)"
+    echo "  K6_DURATION       - k6 test duration (default: 120s)"
+    echo "  K6_TARGET         - k6 target VUs (default: 50)"
+    echo "  K6_TIMEOUT        - k6 request timeout (default: 5s)"
+    echo "  SERVICE_CPU_MULT  - CPU multiplier for compose-post/text/user-mention/nginx services (default: 1.0)"
+    echo "                       e.g. SERVICE_CPU_MULT=0.8 scales 60m -> 48m, 100m -> 80m"
     echo ""
     echo "  HPA-specific overrides (take precedence over global values):"
     echo "  K6_TIMEOUT_HPA1  - k6 timeout for first HPA test"
@@ -213,13 +258,24 @@ wait_for_stabilization() {
 # Function to wait for a specific deployment to be ready with retries
 wait_for_deployment_ready() {
     local deployment_name="$1"
+
+    # nginx-thrift has heavier init logic (git clone, etc.), so give it more time.
     local max_attempts=5
+    local timeout="60s"
+    if [ "$deployment_name" = "nginx-thrift" ]; then
+        max_attempts=10
+        timeout="120s"
+        print_status "Using extended readiness wait for $deployment_name (max_attempts=$max_attempts, timeout=$timeout)"
+    fi
+
     local attempt=1
     
     while [ $attempt -le $max_attempts ]; do
         print_status "Waiting for $deployment_name to be ready (attempt $attempt/$max_attempts)..."
         
-        if kubectl wait --for=condition=ready pod -l app="$deployment_name" -n socialnetwork --timeout=60s; then
+        # Use rollout status on the deployment instead of pod-level waits so
+        # old terminating pods don't cause spurious timeouts.
+        if kubectl rollout status deployment/"$deployment_name" -n socialnetwork --timeout="$timeout"; then
             print_success "$deployment_name is ready"
             return 0
         else
@@ -230,8 +286,9 @@ wait_for_deployment_ready() {
             kubectl get pods -n socialnetwork -l app="$deployment_name"
             
             # Check if pods are in error state
-            local error_pods=$(kubectl get pods -n socialnetwork -l app="$deployment_name" --field-selector=status.phase!=Running --no-headers | wc -l)
-            if [ $error_pods -gt 0 ]; then
+            local error_pods
+            error_pods=$(kubectl get pods -n socialnetwork -l app="$deployment_name" --field-selector=status.phase!=Running --no-headers | wc -l)
+            if [ "$error_pods" -gt 0 ]; then
                 print_warning "Found $error_pods pods not running for $deployment_name"
                 kubectl describe pods -n socialnetwork -l app="$deployment_name" | grep -A 5 -B 5 "Events:"
             fi
@@ -262,22 +319,27 @@ print_k6_stages() {
     print_status "=== k6 Test Stages ==="
     
     # Calculate stage targets (matching k6_loader.js logic)
-    local warmup_target=$((target * 30 / 100))  # 30% of target for warmup
+    local first_warmup_target=$((target * 60 / 100))  # 30% of target for warmup
+    local second_warmup_target=$((target * 90 / 100))  # 30% of target for warmup
     local cooldown_target=1
     
     print_status "Stage 1 (Warmup):"
-    print_status "  Duration: 1m"
-    print_status "  Target VUs: $warmup_target"
+    print_status "  Duration: 30s"
+    print_status "  Start VUs: 0 (ramps from zero)"
+    print_status "  Target VUs: $first_warmup_target"
     print_status ""
-    print_status "Stage 2 (Main Load):"
+    print_status "Stage 2 (Ramp to Full Load):"
+    print_status "  Duration: 30s"
+    print_status "  Target VUs: $second_warmup_target"
+    print_status ""
+    print_status "Stage 3 (Sustained Load):"
     print_status "  Duration: $duration"
-    print_status "  Target VUs: $target"
+    print_status "  Target VUs: $target (held constant)"
     print_status ""
-    print_status "Stage 3 (Cooldown):"
+    print_status "Stage 4 (Cooldown):"
     print_status "  Duration: 1m"
     print_status "  Target VUs: $cooldown_target"
     print_status ""
-    print_status "Maximum VUs allocated: $target"
     # Calculate total duration in seconds for display
     local duration_secs
     if [[ $duration =~ ^([0-9]+)m$ ]]; then
@@ -288,14 +350,103 @@ print_k6_stages() {
         duration_secs=120  # fallback
     fi
     local total_duration=$((duration_secs + 120))
-    print_status "Total test duration: ~${total_duration}s (including warmup and cooldown)"
+    print_status "Total test duration: ~${total_duration}s (30s warmup + 30s ramp + ${duration} sustained + 1m cooldown)"
     print_status "=========================================="
 }
 
 # Function to run k6 test
+# Save a snapshot of all relevant configuration into a run's config/ directory
+save_run_config() {
+    local run_dir="$1"
+    local test_desc="$2"
+    local hpa_label="$3"
+    local k6_csv="$4"
+    local config_dir="$run_dir/config"
+    mkdir -p "$config_dir"
+
+    # Copy HPA YAML used for this run
+    local hpa_file
+    if [ "$hpa_label" = "hpa1" ]; then
+        hpa_file="$HPA1_FILE"
+    else
+        hpa_file="$HPA2_FILE"
+    fi
+    if [ -f "$hpa_file" ]; then
+        cp "$hpa_file" "$config_dir/hpa_config.yaml"
+    fi
+
+    # Copy service resource definitions
+    if [ -f "deathstar-bench/hpa/service_values.yaml" ]; then
+        cp "deathstar-bench/hpa/service_values.yaml" "$config_dir/service_values.yaml"
+    fi
+
+    # Copy Prometheus adapter values
+    if [ -f "prom/prometheus-adapter-values-parent-child.yaml" ]; then
+        cp "prom/prometheus-adapter-values-parent-child.yaml" "$config_dir/prometheus_adapter_values.yaml"
+    fi
+
+    # Copy Grafana dashboard JSON
+    if [ -f "deathstar-bench/monitoring/davide-dashboard.json" ]; then
+        cp "deathstar-bench/monitoring/davide-dashboard.json" "$config_dir/grafana_dashboard.json"
+    fi
+
+    # Copy k6 loader script
+    if [ -f "k6/k6_loader.js" ]; then
+        cp "k6/k6_loader.js" "$config_dir/k6_loader.js"
+    fi
+
+    # Write a human-readable run summary
+    cat > "$config_dir/run_details.txt" <<RUNEOF
+=== Run Configuration ===
+Date:             $(date -u '+%Y-%m-%d %H:%M:%S UTC')
+Test Name:        $TEST_NAME
+Test Description: $test_desc
+HPA Label:        $hpa_label
+Run Directory:    $run_dir
+
+=== Command ===
+$0 $HPA1_FILE $HPA2_FILE $TEST_NAME
+
+=== k6 Parameters ===
+K6_DURATION:      ${K6_DURATION:-120s}
+K6_TARGET (VUs):  ${K6_TARGET:-50}
+K6_TIMEOUT:       ${K6_TIMEOUT:-5s}
+K6 CSV Output:    $k6_csv
+
+=== HPA Configuration ===
+HPA File:         $hpa_file
+HPA YAML (inline):
+$(cat "$hpa_file" 2>/dev/null || echo "(not available)")
+
+=== Environment ===
+Reset Method:        $(if [ "$HARD_RESET_TESTBED" = true ]; then echo "Hard reset"; elif [ "$FORCE_RESET_HPA" = true ]; then echo "Force reset"; else echo "Standard reset"; fi)
+Service CPU Mult:    ${SERVICE_CPU_MULT:-1.0}
+Kubernetes Context:  $(kubectl config current-context 2>/dev/null || echo "(unknown)")
+Cluster Nodes:
+$(kubectl get nodes -o wide 2>/dev/null | head -5 || echo "(unavailable)")
+
+=== HPA Status at Test Start ===
+$(kubectl get hpa -n socialnetwork 2>/dev/null || echo "(unavailable)")
+
+=== Deployment Status at Test Start ===
+$(kubectl get deploy -n socialnetwork 2>/dev/null | grep -E "(NAME|nginx-thrift|compose-post-service|text-service|user-mention-service)" || echo "(unavailable)")
+
+=== Files in config/ ===
+hpa_config.yaml              - HPA YAML used for this run ($hpa_file)
+service_values.yaml          - Service CPU/memory resource definitions
+prometheus_adapter_values.yaml - Prometheus adapter external metrics config
+grafana_dashboard.json       - Grafana dashboard used for metric scraping
+k6_loader.js                 - k6 load test script
+run_details.txt              - This file
+RUNEOF
+
+    print_status "Saved run configuration to $config_dir/"
+}
+
 run_k6_test() {
     local output_file="$1"
     local test_desc="$2"
+    local hpa_label="${3:-}"  # e.g. "hpa1" or "hpa2", used to tag Grafana CSV
     
     print_status "Running k6 test: $test_desc"
     print_status "Output file: $output_file"
@@ -336,16 +487,61 @@ run_k6_test() {
     local prom_url=$(get_prometheus_url)
     local start_window=$((K6_START_EPOCH-60))
     local end_window=$((K6_END_EPOCH+60))
-    mkdir -p k6/grafana/data k6/grafana/plots
+    local grafana_ref="${TEST_NAME}"
+    if [ -n "$hpa_label" ]; then
+        grafana_ref="${TEST_NAME}_${hpa_label}"
+    fi
     print_status "Scraping Grafana dashboard queries for time window ${start_window}..${end_window} (±60s)"
-    python3 k6/scrape_grafana_dashboard.py \
+    local scrape_output
+    scrape_output=$(python3 k6/scrape_grafana_dashboard.py \
       --dashboard-json deathstar-bench/monitoring/davide-dashboard.json \
       --prom "$prom_url" \
       --start "$start_window" \
       --end "$end_window" \
-      --ref-name "$TEST_NAME" \
-      --out-data-dir k6/grafana/data \
-      --out-plots-dir k6/grafana/plots || print_warning "Grafana scraping failed for $test_desc"
+      --ref-name "$grafana_ref" \
+      --out-dir k6/grafana 2>&1) || print_warning "Grafana scraping failed for $test_desc"
+    echo "$scrape_output"
+
+    # Merge k6 + Grafana into a unified report, then generate per-run plots
+    local grafana_run_dir
+    grafana_run_dir=$(echo "$scrape_output" | grep '^GRAFANA_RUN_DIR=' | tail -1 | cut -d= -f2-)
+    if [ -n "$grafana_run_dir" ] && [ -f "$grafana_run_dir/grafana_master.csv" ]; then
+        local run_plots_dir="$grafana_run_dir/plots"
+
+        print_status "Merging k6 + Grafana data into unified report..."
+        python3 k6/merge_k6_grafana.py \
+          --k6-csv "$output_file" \
+          --grafana-csv "$grafana_run_dir/grafana_master.csv" \
+          --bucket-sec 15 || print_warning "k6+Grafana merge failed for $test_desc"
+
+        # Per-run k6 plots (latency, throughput, success rate, distribution)
+        print_status "Generating per-run k6 plots..."
+        python3 k6/k6_csv_report_parser.py \
+          --k6-csv "$output_file" \
+          --out-dir "$run_plots_dir" \
+          --label "$grafana_ref" || print_warning "k6 per-run plots failed for $test_desc"
+
+        # 4-panel overview (success rate, error rate, replicas, CPU)
+        if [ -f "$grafana_run_dir/unified_report.csv" ]; then
+            print_status "Generating 4-panel overview plot..."
+            python3 k6/4by4plots.py \
+              --unified-csv "$grafana_run_dir/unified_report.csv" \
+              --out-dir "$run_plots_dir" \
+              --label "$grafana_ref" || print_warning "4-panel overview failed for $test_desc"
+        fi
+    else
+        print_warning "Skipping k6+Grafana merge and per-run plots (no Grafana run directory found)"
+    fi
+
+    # Save config snapshot into the run directory
+    if [ -n "$grafana_run_dir" ] && [ -d "$grafana_run_dir" ]; then
+        save_run_config "$grafana_run_dir" "$test_desc" "$hpa_label" "$output_file"
+    fi
+
+    # Export the run directory so the caller (and wrapper scripts) can find it
+    if [ -n "$hpa_label" ] && [ -n "$grafana_run_dir" ]; then
+        export "GRAFANA_DIR_${hpa_label}=$grafana_run_dir"
+    fi
 }
 
 # Function to apply HPA and verify
@@ -374,8 +570,8 @@ apply_hpa() {
 reset_hpa_recommendations() {
     print_status "Resetting HPA recommendations..."
     
-    # Get current HPA status
-    kubectl get hpa -n socialnetwork -o json | jq -r '.items[] | select(.spec.scaleTargetRef.name | test("nginx-thrift|compose-post-service|text-service|user-mention-service")) | .metadata.name' | while read hpa_name; do
+    # Get current HPA status (only for autoscaled services, nginx-thrift is fixed at 10 replicas)
+    kubectl get hpa -n socialnetwork -o json | jq -r '.items[] | select(.spec.scaleTargetRef.name | test("compose-post-service|text-service|user-mention-service")) | .metadata.name' | while read hpa_name; do
         if [ ! -z "$hpa_name" ]; then
             print_status "Resetting recommendations for $hpa_name"
             kubectl patch hpa "$hpa_name" -n socialnetwork --type='merge' -p='{"status":{"conditions":null}}' || true
@@ -385,11 +581,13 @@ reset_hpa_recommendations() {
     sleep 5
 }
 
-# Function to wait for HPA to scale down replicas after applying new configuration
+# Function to wait for HPA to reach baseline after applying new configuration
 wait_for_hpa_to_stabilize() {
-    print_status "Waiting for HPA to scale down replicas to baseline (1 replica each)..."
+    # Baseline: nginx-thrift fixed at 10 replicas, downstream services at 1.
+    print_status "Waiting for HPA to reach baseline (nginx-thrift=10, others=1 replica)..."
     
-    local deployments=("nginx-thrift" "compose-post-service" "text-service" "user-mention-service")
+    # nginx-thrift is fixed; only downstream services are autoscaled by HPA.
+    local deployments=("compose-post-service" "text-service" "user-mention-service")
     local all_ready=false
     local max_attempts=20
     local attempt=1
@@ -398,11 +596,14 @@ wait_for_hpa_to_stabilize() {
         all_ready=true
         
         for deployment in "${deployments[@]}"; do
-            local current_replicas=$(kubectl get deploy "$deployment" -n socialnetwork -o jsonpath='{.status.readyReplicas}' 2>/dev/null || echo "0")
-            local desired_replicas=$(kubectl get deploy "$deployment" -n socialnetwork -o jsonpath='{.spec.replicas}' 2>/dev/null || echo "0")
+            local current_replicas
+            local desired_replicas
+
+            current_replicas=$(kubectl get deploy "$deployment" -n socialnetwork -o jsonpath='{.status.readyReplicas}' 2>/dev/null || echo "0")
+            desired_replicas=$(kubectl get deploy "$deployment" -n socialnetwork -o jsonpath='{.spec.replicas}' 2>/dev/null || echo "0")
             
             if [ "$current_replicas" != "1" ] || [ "$desired_replicas" != "1" ]; then
-                print_status "$deployment: $current_replicas/$desired_replicas replicas (HPA scaling down to 1/1)..."
+                print_status "$deployment: $current_replicas/$desired_replicas replicas (HPA moving toward 1/1 baseline)..."
                 all_ready=false
             fi
         done
@@ -415,7 +616,7 @@ wait_for_hpa_to_stabilize() {
     done
     
     if [ "$all_ready" = true ]; then
-        print_success "HPA has scaled all deployments down to 1 replica"
+        print_success "HPA has driven all downstream deployments to 1 replica (nginx-thrift remains fixed at 10)"
     else
         print_warning "Timeout waiting for HPA to scale down, but continuing..."
     fi
@@ -424,11 +625,12 @@ wait_for_hpa_to_stabilize() {
     kubectl get deploy -n socialnetwork | grep -E "(nginx-thrift|compose-post-service|text-service|user-mention-service)"
 }
 
-# Function to wait for deployments to scale down to 1 replica
+# Function to wait for deployments to return to baseline (nginx-thrift=10, others=1)
 wait_for_pods_to_reset() {
-    print_status "Waiting for all deployments to scale down to 1 replica..."
+    print_status "Waiting for deployments to return to baseline (nginx-thrift=10, others=1 replica)..."
     
-    local deployments=("nginx-thrift" "compose-post-service" "text-service" "user-mention-service")
+    # nginx-thrift is fixed at 10 replicas; only downstream services are reset to 1
+    local deployments=("compose-post-service" "text-service" "user-mention-service")
     local all_ready=false
     local max_attempts=30
     local attempt=1
@@ -441,7 +643,7 @@ wait_for_pods_to_reset() {
             local desired_replicas=$(kubectl get deploy "$deployment" -n socialnetwork -o jsonpath='{.spec.replicas}' 2>/dev/null || echo "0")
             
             if [ "$current_replicas" != "1" ] || [ "$desired_replicas" != "1" ]; then
-                print_status "$deployment: $current_replicas/$desired_replicas replicas (waiting for 1/1)..."
+                print_status "$deployment: $current_replicas/$desired_replicas replicas (waiting for 1/1 baseline)..."
                 all_ready=false
             fi
         done
@@ -454,7 +656,7 @@ wait_for_pods_to_reset() {
     done
     
     if [ "$all_ready" = true ]; then
-        print_success "All deployments have scaled down to 1 replica"
+        print_success "Downstream deployments have returned to 1 replica (nginx-thrift remains fixed at 10)"
     else
         print_warning "Timeout waiting for replicas to scale down, but continuing..."
     fi
@@ -467,15 +669,16 @@ wait_for_pods_to_reset() {
 force_reset_deployments() {
     print_status "=== Force Resetting Deployments for Clean State ==="
     
-    local deployments=("nginx-thrift" "compose-post-service" "text-service" "user-mention-service")
+    # nginx-thrift is fixed at 10 replicas; only downstream services participate in force reset
+    local deployments=("compose-post-service" "text-service" "user-mention-service")
     
     # Step 1: Delete all HPAs
     print_status "Step 1: Deleting all HPAs..."
     kubectl delete hpa -n socialnetwork --all --ignore-not-found=true
     sleep 5
     
-    # Step 2: Scale down all deployments to 1 replica
-    print_status "Step 2: Scaling down all deployments to 1 replica..."
+    # Step 2: Scale downstream deployments to 1 replica (nginx-thrift stays at 10 via service_values.yaml)
+    print_status "Step 2: Scaling downstream deployments to 1 replica (nginx-thrift remains fixed at 10)..."
     for deployment in "${deployments[@]}"; do
         print_status "Scaling $deployment to 1 replica..."
         kubectl scale deployment "$deployment" -n socialnetwork --replicas=1
@@ -549,33 +752,30 @@ hard_reset_testbed() {
 
 # Function to get Prometheus URL (IP-based workaround for DNS issues)
 get_prometheus_url() {
-    # If a local port-forward is open (common), prefer it
-    if wget -qO- --timeout=2 http://127.0.0.1:9090/-/ready >/dev/null 2>&1; then
-        echo "http://127.0.0.1:9090"
-        return
-    fi
-    
+    # port-forward.sh maps kube-prometheus-stack to localhost:9091
+    for port in 9091 9090; do
+        if curl -sS --max-time 3 "http://127.0.0.1:${port}/api/v1/query?query=up" >/dev/null 2>&1; then
+            echo "http://127.0.0.1:${port}"
+            return
+        fi
+    done
+
+    # Try cluster IP directly
     local prom_service_ip=$(kubectl get svc kube-prometheus-stack-prometheus -n monitoring -o jsonpath='{.spec.clusterIP}' 2>/dev/null)
-    local candidate=""
     if [ -n "$prom_service_ip" ]; then
-        candidate="http://$prom_service_ip:9090"
-    else
-        candidate="http://kube-prometheus-stack-prometheus.monitoring.svc:9090"
+        if curl -sS --max-time 3 "http://$prom_service_ip:9090/api/v1/query?query=up" >/dev/null 2>&1; then
+            echo "http://$prom_service_ip:9090"
+            return
+        fi
     fi
 
-    # Try quick connectivity check from host; if unreachable, fall back to localhost via port-forward
-    if curl -sS --max-time 2 "$candidate/api/v1/query?query=up" >/dev/null 2>&1; then
-        echo "$candidate"
-        return
+    # Start a port-forward as last resort (use 9091 to match port-forward.sh convention)
+    if ! lsof -i :9091 -sTCP:LISTEN >/dev/null 2>&1; then
+        print_status "Starting temporary port-forward to Prometheus on localhost:9091"
+        kubectl -n monitoring port-forward svc/kube-prometheus-stack-prometheus 9091:9090 >/dev/null 2>&1 &
+        sleep 3
     fi
-
-    # Start (or reuse) a port-forward to Prometheus on localhost:9090
-    if ! lsof -i :9090 -sTCP:LISTEN >/dev/null 2>&1; then
-        print_status "Starting temporary port-forward to Prometheus on localhost:9090 (connectivity fallback)"
-        kubectl -n monitoring port-forward svc/kube-prometheus-stack-prometheus 9090:9090 >/dev/null 2>&1 &
-        sleep 2
-    fi
-    echo "http://localhost:9090"
+    echo "http://localhost:9091"
 }
 
 # Function to check if Prometheus is accessible
@@ -583,31 +783,13 @@ check_prometheus() {
     local prom_url=$(get_prometheus_url)
     print_status "Checking Prometheus accessibility at $prom_url..."
     
-    # If using local port-forward, check directly
-    if echo "$prom_url" | grep -qE '^http://(127\.0\.0\.1|localhost):9090'; then
-        if wget -qO- --timeout=2 "$prom_url/-/ready" >/dev/null 2>&1 || wget -qO- --timeout=2 "$prom_url/api/v1/status/buildinfo" >/dev/null 2>&1; then
-            print_success "Prometheus (port-forward) is accessible"
-            return 0
-        fi
-        print_warning "Local port-forward detected but not responding"
-        return 1
+    if curl -sS --max-time 3 "$prom_url/api/v1/query?query=up" >/dev/null 2>&1; then
+        print_success "Prometheus is accessible at $prom_url"
+        return 0
     fi
     
-    # Otherwise, verify in-cluster reachability
-    if kubectl get pods -n monitoring -l app.kubernetes.io/name=prometheus --no-headers 2>/dev/null | grep -q Running; then
-        print_success "Prometheus pod is running"
-        # Test Prometheus API access from existing pod (workaround for DNS issues)
-        if kubectl exec -n monitoring prometheus-kube-prometheus-stack-prometheus-0 -- wget -qO- "$prom_url/api/v1/query?query=up" >/dev/null 2>&1; then
-            print_success "Prometheus API is accessible"
-            return 0
-        else
-            print_warning "Prometheus API not accessible from within cluster"
-            return 1
-        fi
-    else
-        print_warning "Prometheus pod not found or not running"
-        return 1
-    fi
+    print_warning "Prometheus not responding at $prom_url"
+    return 1
 }
 
 # Function to install Python dependencies
@@ -655,13 +837,15 @@ install_python_dependencies() {
 run_with_logging() {
     local cmd="$1"
     local desc="$2"
+    local log_file="${3:-}"
     
     print_status "Running: $desc"
     print_status "Command: $cmd"
     
     # Run command and capture both stdout and stderr, while also displaying them
-    # Enhanced to highlight k6 metrics
+    # Optionally append raw output to log_file (third argument)
     eval "$cmd" 2>&1 | while IFS= read -r line; do
+        [ -n "$log_file" ] && echo "$line" >> "$log_file"
         # Highlight k6 metrics with special formatting
         if echo "$line" | grep -q "http_req_duration.*avg=\|http_reqs.*[0-9]/s\|http_req_failed.*[0-9]%\|checks.*[0-9]%"; then
             echo -e "${GREEN}[METRICS]${NC} $line"
@@ -679,184 +863,84 @@ run_with_logging() {
     return ${PIPESTATUS[0]}
 }
 
-# Function to generate enhanced reports with Prometheus metrics
-generate_enhanced_reports() {
-    local prom_url=$(get_prometheus_url)
-    local services="nginx-thrift compose-post-service text-service user-mention-service"
-    
-    print_status "Generating enhanced reports with HPA scaling metrics..."
-    print_status "Using Prometheus URL: $prom_url"
-    
-    # Check if Prometheus is available
-    if ! check_prometheus; then
-        print_warning "Prometheus not available - skipping enhanced reports"
-        print_status "Enhanced reports will be generated with basic k6 metrics only"
-        return 0  # Return 0 to allow script to continue (skipping is not an error)
-    fi
-    
-    # Generate enhanced report for HPA1
-    print_status "Generating enhanced report for HPA1..."
-    local cmd1="python3 enhanced_report.py \
-        --k6-csv \"reports/${TEST_NAME}_hpa1_${TIMESTAMP}.csv\" \
-        --prom \"$prom_url\" \
-        --namespace socialnetwork \
-        --services $services \
-        --bucket-sec 30 \
-        --out \"reports/enhanced/${TEST_NAME}_hpa1_${TIMESTAMP}_enhanced.csv\""
-    
-    if run_with_logging "$cmd1" "Enhanced report generation for HPA1"; then
-        print_success "Enhanced report for HPA1 generated"
-    else
-        print_warning "Failed to generate enhanced report for HPA1"
-    fi
-    
-    # Generate enhanced report for HPA2
-    print_status "Generating enhanced report for HPA2..."
-    local cmd2="python3 enhanced_report.py \
-        --k6-csv \"reports/${TEST_NAME}_hpa2_${TIMESTAMP}.csv\" \
-        --prom \"$prom_url\" \
-        --namespace socialnetwork \
-        --services $services \
-        --bucket-sec 30 \
-        --out \"reports/enhanced/${TEST_NAME}_hpa2_${TIMESTAMP}_enhanced.csv\""
-    
-    if run_with_logging "$cmd2" "Enhanced report generation for HPA2"; then
-        print_success "Enhanced report for HPA2 generated"
-    else
-        print_warning "Failed to generate enhanced report for HPA2"
-    fi
-    
-    return 0
-}
-
-# Function to run cluster HPA analysis
-run_cluster_hpa_analysis() {
-    print_status "Running cluster HPA analysis..."
-    
-    # Note: This function is called from within run_comparison() which has cd'd into k6 directory
-    # So we need to get back to the parent directory to reference the file with k6/ prefix
-    # Create ConfigMap with the cluster analyzer script (using absolute path or relative from project root)
-    kubectl create configmap cluster-hpa-analyzer --from-file=cluster_hpa_analyzer.py -n socialnetwork --dry-run=client -o yaml | kubectl apply -f - >/dev/null 2>&1
-    
-    print_status "Running HPA metrics analysis inside cluster..."
-    
-    # Run the cluster analyzer inside the cluster
-    local cluster_cmd="kubectl run cluster-hpa-analysis --image=python:3.9-slim --rm -i --restart=Never --overrides='
-{
-  \"spec\": {
-    \"containers\": [
-      {
-        \"name\": \"cluster-hpa-analysis\",
-        \"image\": \"python:3.9-slim\",
-        \"command\": [\"/bin/bash\", \"-c\"],
-        \"args\": [
-          \"pip install pandas numpy urllib3 --quiet && python3 /tmp/cluster_hpa_analyzer.py --debug\"
-        ],
-        \"volumeMounts\": [
-          {
-            \"name\": \"analyzer-script\",
-            \"mountPath\": \"/tmp\"
-          }
-        ]
-      }
-    ],
-    \"volumes\": [
-      {
-        \"name\": \"analyzer-script\",
-        \"configMap\": {
-          \"name\": \"cluster-hpa-analyzer\"
-        }
-      }
-    ]
-  }
-}'"
-    
-    if run_with_logging "$cluster_cmd" "Cluster HPA analysis"; then
-        print_success "Cluster HPA analysis completed"
-    else
-        print_warning "Cluster HPA analysis failed"
-    fi
-    
-    # Clean up ConfigMap
-    kubectl delete configmap cluster-hpa-analyzer -n socialnetwork >/dev/null 2>&1
-}
-
-# Function to analyze HPA scaling behavior
-analyze_hpa_scaling() {
-    print_status "Analyzing HPA scaling behavior..."
-    
-    # Note: This function is called from within run_comparison() which has cd'd into k6 directory
-    # So we use relative paths from the k6 directory
-    local enhanced_hpa1="reports/enhanced/${TEST_NAME}_hpa1_${TIMESTAMP}_enhanced.csv"
-    local enhanced_hpa2="reports/enhanced/${TEST_NAME}_hpa2_${TIMESTAMP}_enhanced.csv"
-    
-    # Check if enhanced reports exist
-    if [ ! -f "$enhanced_hpa1" ] || [ ! -f "$enhanced_hpa2" ]; then
-        print_warning "Enhanced reports not available - skipping HPA scaling analysis"
-        print_status "Looking for files: $enhanced_hpa1 and $enhanced_hpa2"
-        print_status "Current directory: $(pwd)"
-        ls -la reports/enhanced/ 2>/dev/null || print_warning "Enhanced reports directory does not exist"
-        return 1
-    fi
-    
-    # Run cluster HPA analysis first
-    run_cluster_hpa_analysis
-    
-    # Run HPA scaling analysis using the dedicated Python script
-    # Note: We're in the k6 directory at this point, so use relative path
-    if [ -f "hpa_metrics_analyzer.py" ]; then
-        local prom_url=$(get_prometheus_url)
-        local hpa_analysis_cmd="python3 hpa_metrics_analyzer.py \
-            --hpa1 \"$enhanced_hpa1\" \
-            --hpa2 \"$enhanced_hpa2\" \
-            --prom \"$prom_url\" \
-            --namespace \"socialnetwork\" \
-            --services \"nginx-thrift\" \"compose-post-service\" \"text-service\" \"user-mention-service\""
-        
-        if run_with_logging "$hpa_analysis_cmd" "HPA metrics analysis"; then
-            print_success "HPA scaling analysis completed"
-        else
-            print_warning "HPA scaling analysis failed"
-        fi
-    else
-        print_warning "HPA metrics analyzer script not found - skipping detailed analysis"
-    fi
-}
-
 # Function to run comparison
 run_comparison() {
     print_status "Running comparison analysis..."
+
+    # Build comparison output folder next to the per-HPA run folders
+    local today=$(date -u +%Y-%m-%d)
+    local comparison_ts=$(date -u +%H%M%SZ)
+    local comparison_dir="k6/grafana/${today}/${TEST_NAME}_comparison_${comparison_ts}"
+    mkdir -p "$comparison_dir"
+
+    # Log file capturing all comparison script output
+    local comparison_log="${comparison_dir}/comparison.log"
+    echo "=== HPA Comparison Log ===" > "$comparison_log"
+    echo "Generated: $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> "$comparison_log"
+    echo "Test Name: $TEST_NAME" >> "$comparison_log"
+    echo "" >> "$comparison_log"
+
     cd k6
     
-    # Create enhanced reports directory
-    mkdir -p reports/enhanced
-    
-    # Generate enhanced reports with HPA metrics
-    generate_enhanced_reports
-    
-    # Run standard k6 comparison
+    # Derive human-readable labels from HPA YAML filenames (without path and extension)
+    local label_a
+    local label_b
+    label_a=$(basename "$HPA1_FILE" .yaml)
+    label_b=$(basename "$HPA2_FILE" .yaml)
+
+    echo "Label A: $label_a" >> "../${comparison_log}"
+    echo "Label B: $label_b" >> "../${comparison_log}"
+    echo "" >> "../${comparison_log}"
+
+    # Run standard k6 comparison with plots going into the comparison folder
+    echo "========================================" >> "../${comparison_log}"
+    echo "  k6 Report Comparison" >> "../${comparison_log}"
+    echo "========================================" >> "../${comparison_log}"
     local comparison_cmd="python3 k6_report_comparison.py \
         --a \"reports/${TEST_NAME}_hpa1_${TIMESTAMP}.csv\" \
         --b \"reports/${TEST_NAME}_hpa2_${TIMESTAMP}.csv\" \
-        --out \"reports/${TEST_NAME}_comparison_${TIMESTAMP}.json\""
+        --label-a \"$label_a\" \
+        --label-b \"$label_b\" \
+        --out \"../${comparison_dir}/comparison_result.json\" \
+        --plots-dir \"../${comparison_dir}\""
     
-    if run_with_logging "$comparison_cmd" "k6 report comparison analysis"; then
+    if run_with_logging "$comparison_cmd" "k6 report comparison analysis" "../${comparison_log}"; then
         print_success "Comparison completed successfully"
-        print_status "Results saved to: k6/reports/${TEST_NAME}_comparison_${TIMESTAMP}.json"
-        print_status "Plots saved to: k6/plots/"
+        print_status "Comparison results saved to: ${comparison_dir}/"
     else
         print_error "Comparison failed"
         exit 1
     fi
     
-    # Run HPA scaling analysis
-    analyze_hpa_scaling
-    
     cd ..
+
+    # Generate overlay plots from unified_report.csv files
+    local hpa1_unified="${GRAFANA_DIR_hpa1:-}/unified_report.csv"
+    local hpa2_unified="${GRAFANA_DIR_hpa2:-}/unified_report.csv"
+    if [ -f "$hpa1_unified" ] && [ -f "$hpa2_unified" ]; then
+        print_status "Generating overlay comparison plots..."
+        echo "" >> "$comparison_log"
+        echo "========================================" >> "$comparison_log"
+        echo "  Overlay Plots" >> "$comparison_log"
+        echo "========================================" >> "$comparison_log"
+        local overlay_cmd="python3 k6/overlay_plots.py \
+          --csv-a \"$hpa1_unified\" \
+          --csv-b \"$hpa2_unified\" \
+          --out-dir \"$comparison_dir\" \
+          --label-a \"$label_a\" \
+          --label-b \"$label_b\""
+        run_with_logging "$overlay_cmd" "Overlay comparison plots" "$comparison_log" || print_warning "Overlay plots failed (non-fatal)"
+    else
+        print_warning "Skipping overlay plots (unified_report.csv not found for both HPAs)"
+    fi
+
+    # List all run folders for this day
+    print_status "Grafana runs for today:"
+    find "k6/grafana/${today}/" -maxdepth 1 -mindepth 1 -type d -printf '  %f\n' 2>/dev/null || print_warning "No run folders found"
     
-    # Run latency breakdown comparison
+    # Run latency breakdown comparison (output into the comparison folder)
     print_status "Running latency breakdown comparison..."
-    local latency_cmp_dir="k6/comparison_output"
+    local latency_cmp_dir="${comparison_dir}/latency_breakdown"
     mkdir -p "$latency_cmp_dir"
     
     # Use absolute paths for CSV files (we're in project root after cd ..)
@@ -876,16 +960,23 @@ run_comparison() {
     # Add Prometheus URL if available
     if [ -n "$prom_url" ]; then
         if check_prometheus "$prom_url" 2>/dev/null; then
-            latency_cmp_cmd+=" --prom \"$prom_url\" --namespace socialnetwork --services nginx-thrift compose-post-service text-service user-mention-service"
+            # Exclude nginx-thrift from latency breakdown services; focus only on autoscaled internals.
+            latency_cmp_cmd+=" --prom \"$prom_url\" --namespace socialnetwork --services compose-post-service text-service user-mention-service"
         fi
     fi
     
-    if run_with_logging "$latency_cmp_cmd" "Latency breakdown comparison"; then
+    echo "" >> "$comparison_log"
+    echo "========================================" >> "$comparison_log"
+    echo "  Latency Breakdown Comparison" >> "$comparison_log"
+    echo "========================================" >> "$comparison_log"
+    if run_with_logging "$latency_cmp_cmd" "Latency breakdown comparison" "$comparison_log"; then
         print_success "Latency breakdown comparison completed"
         print_status "Latency breakdown results saved to: $latency_cmp_dir/"
     else
         print_warning "Latency breakdown comparison failed (non-fatal)"
     fi
+
+    print_status "Full comparison log saved to: $comparison_log"
 }
 
 # Main execution
@@ -922,8 +1013,12 @@ main() {
     
     # Step 2: Apply service values (CPU requests) using server-side apply
     print_status "Step 2: Ensuring CPU requests are set for all services..."
-    kubectl apply -f deathstar-bench/hpa/service_values.yaml -n socialnetwork --server-side --force-conflicts
-    print_success "Service CPU requests applied"
+    if apply_service_values_with_multiplier; then
+        print_success "Service CPU requests applied"
+    else
+        print_warning "Falling back to unscaled service_values.yaml due to error applying scaled values"
+        kubectl apply -f deathstar-bench/hpa/service_values.yaml -n socialnetwork --server-side --force-conflicts
+    fi
     
     # Step 3: Test with first HPA configuration
     print_status "=== Testing HPA Configuration 1 ==="
@@ -958,7 +1053,7 @@ main() {
         export K6_TARGET="50"
     fi
     print_status "HPA1 Configuration: K6_TIMEOUT=$K6_TIMEOUT, K6_DURATION=$K6_DURATION, K6_TARGET=$K6_TARGET"
-    run_k6_test "$HPA1_OUTPUT" "HPA Configuration 1"
+    run_k6_test "$HPA1_OUTPUT" "HPA Configuration 1" "hpa1"
     sleep 60s
     # Step 4: Reset deployments for clean state
     if [ "$HARD_RESET_TESTBED" = true ]; then
@@ -1009,7 +1104,7 @@ main() {
         export K6_TARGET="50"
     fi
     print_status "HPA2 Configuration: K6_TIMEOUT=$K6_TIMEOUT, K6_DURATION=$K6_DURATION, K6_TARGET=$K6_TARGET"
-    run_k6_test "$HPA2_OUTPUT" "HPA Configuration 2"
+    run_k6_test "$HPA2_OUTPUT" "HPA Configuration 2" "hpa2"
     
     # Step 6: Run comparison
     print_status "=== Running Comparison Analysis ==="
@@ -1025,28 +1120,23 @@ main() {
     print_status "HTTP Request Duration Metrics Comparison:"
     
     print_status "Test results:"
-    print_status "  HPA1 results: $HPA1_OUTPUT"
-    print_status "  HPA2 results: $HPA2_OUTPUT"
-    print_status "  Comparison: $COMPARISON_OUTPUT"
-    print_status "  Plots: k6/plots/"
-    print_status "  Enhanced reports: k6/reports/enhanced/"
-    print_status "  Latency breakdown comparison: k6/comparison_output/"
+    print_status "  HPA1 k6 results: $HPA1_OUTPUT"
+    print_status "  HPA2 k6 results: $HPA2_OUTPUT"
+    print_status "  k6 comparison:   $COMPARISON_OUTPUT"
+    print_status "  k6 plots:        k6/plots/"
+    print_status "  Per-HPA runs:    k6/grafana/<date>/<TestName>_hpa1_*/ and hpa2_*/"
+    print_status "    Each contains: grafana_master.csv, unified_report.csv, plots/"
+    print_status "  Comparison:      k6/grafana/<date>/<TestName>_comparison/"
+    print_status "  Latency breakdown: k6/comparison_output/"
     print_status ""
     print_status "=== Analysis Summary ==="
     print_status "[OK] Standard k6 comparison completed"
-    print_status "[OK] Enhanced reports with HPA metrics generated (if Prometheus available)"
-    print_status "[OK] HPA scaling behavior analysis completed"
+    print_status "[OK] Grafana dashboard data exported to CSV (per HPA)"
     print_status "[OK] Latency breakdown comparison completed"
-    print_status "[OK] HTTP request duration metrics displayed on screen"
-    print_status ""
-    print_status "To view detailed HPA scaling analysis, check the enhanced reports in:"
-    print_status "  k6/reports/enhanced/${TEST_NAME}_hpa1_${TIMESTAMP}_enhanced.csv"
-    print_status "  k6/reports/enhanced/${TEST_NAME}_hpa2_${TIMESTAMP}_enhanced.csv"
-    print_status ""
-    print_status "To view latency breakdown comparison, check:"
-    print_status "  k6/comparison_output/latency_comparison.png"
-    print_status "  k6/comparison_output/waiting_time_comparison.png"
-    print_status "  k6/comparison_output/latency_comparison_detailed.csv"
+
+    # Machine-readable output for wrapper scripts (e.g. reset_then_test.sh --average)
+    echo "HPA_RUN_DIR_HPA1=${GRAFANA_DIR_hpa1:-}"
+    echo "HPA_RUN_DIR_HPA2=${GRAFANA_DIR_hpa2:-}"
 }
 
 # Run main function

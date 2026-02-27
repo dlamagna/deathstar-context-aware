@@ -30,9 +30,88 @@ log_error() {
     echo -e "${RED}[ERROR]${NC} [$(date '+%Y-%m-%d %H:%M:%S')] $1"
 }
 
+# Function to print Grafana credentials (optionally including the admin password)
+print_grafana_credentials() {
+    local print_password="${1:-false}"
+    local ns="monitoring"
+    local secret_name="kube-prometheus-stack-grafana"
+
+    # Best-effort discovery: prefer the well-known chart secret, otherwise find any secret with admin-password
+    if ! kubectl -n "$ns" get secret "$secret_name" >/dev/null 2>&1; then
+        secret_name="$(kubectl -n "$ns" get secrets -o json 2>/dev/null \
+            | jq -r '.items[] | select(.data["admin-password"]) | .metadata.name' 2>/dev/null \
+            | head -n 1 || true)"
+    fi
+
+    if [ -z "${secret_name:-}" ]; then
+        log_warning "Grafana admin secret not found in namespace '$ns' (skipping credential print)"
+        return 0
+    fi
+
+    local admin_user
+    admin_user="$(kubectl -n "$ns" get secret "$secret_name" -o jsonpath='{.data.admin-user}' 2>/dev/null | base64 -d 2>/dev/null || true)"
+    if [ -z "${admin_user:-}" ]; then
+        admin_user="admin"
+    fi
+
+    log_info "Grafana credentials:"
+    log_info "  namespace: $ns"
+    log_info "  secret:    $secret_name"
+    log_info "  username:  $admin_user"
+
+    if [ "$print_password" = true ]; then
+        local admin_password
+        admin_password="$(kubectl -n "$ns" get secret "$secret_name" -o jsonpath='{.data.admin-password}' 2>/dev/null | base64 -d 2>/dev/null || true)"
+        if [ -n "${admin_password:-}" ]; then
+            log_warning "Grafana admin password is being printed because --print-grafana-password was set"
+            log_info "  password:  $admin_password"
+        else
+            log_warning "Could not decode Grafana admin password from secret '$secret_name'"
+        fi
+    else
+        log_info "  password:  (not printed)"
+        log_info "  to get it: kubectl -n monitoring get secret $secret_name -o jsonpath='{.data.admin-password}' | base64 -d ; echo"
+    fi
+}
+
+# Best-effort: ensure Grafana's persistent DB admin password matches the Kubernetes Secret.
+# This prevents 401s from the sidecar reloaders when persistence is enabled.
+sync_grafana_admin_password_to_secret() {
+    local ns="monitoring"
+    local secret_name="kube-prometheus-stack-grafana"
+
+    if ! kubectl -n "$ns" get secret "$secret_name" >/dev/null 2>&1; then
+        return 0
+    fi
+
+    local pw
+    pw="$(kubectl -n "$ns" get secret "$secret_name" -o jsonpath='{.data.admin-password}' 2>/dev/null | base64 -d 2>/dev/null || true)"
+    if [ -z "${pw:-}" ]; then
+        return 0
+    fi
+
+    local pod
+    pod="$(kubectl -n "$ns" get pods -l app.kubernetes.io/name=grafana -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || true)"
+    if [ -z "${pod:-}" ]; then
+        return 0
+    fi
+
+    log_info "Syncing Grafana admin password in persistent DB (best effort)..."
+    # Prefer new CLI, fall back to legacy grafana-cli
+    kubectl -n "$ns" exec "$pod" -c grafana -- grafana cli --homepath /usr/share/grafana admin reset-admin-password "$pw" >/dev/null 2>&1 \
+      || kubectl -n "$ns" exec "$pod" -c grafana -- grafana-cli --homepath /usr/share/grafana admin reset-admin-password "$pw" >/dev/null 2>&1 \
+      || log_warning "Failed to sync Grafana admin password (continuing)"
+}
+
 # Configuration
 CLUSTER_NAME="socialnetwork"
-PROJECT_ROOT="/home/dlamagna/projects/Context-Aware-HPA"
+
+# Allow overriding PROJECT_ROOT via environment, otherwise derive it from this script's location
+if [ -z "${PROJECT_ROOT:-}" ]; then
+    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    PROJECT_ROOT="$SCRIPT_DIR"
+fi
+
 CLUSTER_TYPE=""  # Will be set via --cluster-type parameter
 # Public IP of the server hosting the cluster (used for remote access hints)
 # Set this to your server's reachable IP/DNS so the script prints copy/paste URLs
@@ -892,6 +971,23 @@ install_monitoring() {
       --set grafana.service.nodePort="$grafana_nodeport"
       --set prometheus.service.type=NodePort
     )
+
+    # Optional: allow no-login Grafana on protected servers by enabling anonymous Admin access
+    if [ "${grafana_anonymous_admin:-false}" = true ]; then
+        log_warning "Grafana anonymous Admin access enabled (no login required). Use only on protected networks/hosts."
+        # Avoid tricky Helm escaping by using a small values file
+        local grafana_anon_values="/tmp/grafana-anon-values.yaml"
+        cat >"$grafana_anon_values" <<'YAML'
+grafana:
+  grafana.ini:
+    auth.anonymous:
+      enabled: true
+      org_role: Admin
+    auth:
+      disable_login_form: true
+YAML
+        helm_args+=(-f "$grafana_anon_values")
+    fi
     # Apply preserved prometheus nodePort if available
     if [ -n "$prom_nodeport" ]; then
         helm_args+=(--set prometheus.service.nodePort="$prom_nodeport")
@@ -972,6 +1068,10 @@ EOF
     
     # Wait for monitoring pods to be ready
     wait_for_pods "monitoring" 600
+
+    # If Grafana uses persistence, admin credentials in the DB may drift from the Secret.
+    # Syncing prevents 401s from sidecar reloaders and any scripted API calls.
+    sync_grafana_admin_password_to_secret || true
     
     # Fix Grafana image pull issues by preloading the image
     fix_grafana_image_pull_issues
@@ -1145,26 +1245,34 @@ fix_grafana_external_access() {
 # Function to configure Prometheus datasource in Grafana
 configure_prometheus_datasource() {
     log_info "Configuring Prometheus datasource in Grafana..."
-    
-    # Get Grafana admin credentials
-    local admin_password=$(kubectl get secret kube-prometheus-stack-grafana -n monitoring -o jsonpath='{.data.admin-password}' 2>/dev/null | base64 -d 2>/dev/null || echo "")
-    
-    if [ -z "$admin_password" ]; then
-        log_warning "Could not get Grafana admin password from secret"
-        
-        # Try getting password directly from pod environment as fallback
-        local pod_name=$(kubectl get pods -n monitoring -l app.kubernetes.io/name=grafana -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || echo "")
-        if [ -n "$pod_name" ]; then
-            log_info "Attempting to get password from Grafana pod environment..."
-            admin_password=$(kubectl exec -n monitoring "$pod_name" -c grafana -- env 2>/dev/null | grep "^GF_SECURITY_ADMIN_PASSWORD=" | cut -d'=' -f2- || echo "")
-        fi
+
+    # If anonymous admin is enabled, don't rely on credentials at all.
+    local admin_password=""
+    local curl_auth=()
+    if [ "${grafana_anonymous_admin:-false}" != true ]; then
+        # Get Grafana admin credentials
+        admin_password=$(kubectl get secret kube-prometheus-stack-grafana -n monitoring -o jsonpath='{.data.admin-password}' 2>/dev/null | base64 -d 2>/dev/null || echo "")
         
         if [ -z "$admin_password" ]; then
-            log_warning "Could not get Grafana admin password, datasource might already be configured"
-            log_warning "Using default datasource UID 'prometheus' for dashboard"
-            export PROMETHEUS_DATASOURCE_UID="prometheus"
-            return 0
+            log_warning "Could not get Grafana admin password from secret"
+            
+            # Try getting password directly from pod environment as fallback
+            local pod_name=$(kubectl get pods -n monitoring -l app.kubernetes.io/name=grafana -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || echo "")
+            if [ -n "$pod_name" ]; then
+                log_info "Attempting to get password from Grafana pod environment..."
+                admin_password=$(kubectl exec -n monitoring "$pod_name" -c grafana -- env 2>/dev/null | grep "^GF_SECURITY_ADMIN_PASSWORD=" | cut -d'=' -f2- || echo "")
+            fi
+            
+            if [ -z "$admin_password" ]; then
+                log_warning "Could not get Grafana admin password, datasource might already be configured"
+                log_warning "Using default datasource UID 'prometheus' for dashboard"
+                export PROMETHEUS_DATASOURCE_UID="prometheus"
+                return 0
+            fi
         fi
+        curl_auth=(-u "admin:$admin_password")
+    else
+        log_info "Grafana anonymous Admin is enabled; configuring datasource without credentials"
     fi
     
     # Get Grafana service details (prefer NodePort if reachable, otherwise fall back to local port-forward)
@@ -1188,7 +1296,7 @@ configure_prometheus_datasource() {
     local max_retries=30
     
     while [ $retry_count -lt $max_retries ]; do
-        if curl -s -u "admin:$admin_password" "http://$grafana_ip:$grafana_port/api/health" >/dev/null 2>&1; then
+        if curl -s "${curl_auth[@]}" "http://$grafana_ip:$grafana_port/api/health" >/dev/null 2>&1; then
             log_success "Grafana is ready"
             break
         fi
@@ -1221,7 +1329,7 @@ configure_prometheus_datasource() {
     fi
     
     # Check if Prometheus datasource already exists
-    local existing_datasource=$(curl -s -u "admin:$admin_password" "http://$grafana_ip:$grafana_port/api/datasources" 2>/dev/null | jq -r '.[] | select(.type=="prometheus") | .uid' 2>/dev/null || echo "")
+    local existing_datasource=$(curl -s "${curl_auth[@]}" "http://$grafana_ip:$grafana_port/api/datasources" 2>/dev/null | jq -r '.[] | select(.type=="prometheus") | .uid' 2>/dev/null || echo "")
     
     local datasource_uid=""
     
@@ -1248,7 +1356,7 @@ EOF
 )
         
         # Get HTTP status code along with response
-        local create_response=$(curl -s -w "\n%{http_code}" -X POST -u "admin:$admin_password" \
+        local create_response=$(curl -s -w "\n%{http_code}" -X POST "${curl_auth[@]}" \
             -H "Content-Type: application/json" \
             -d "$datasource_config" \
             "http://$grafana_ip:$grafana_port/api/datasources" 2>/dev/null)
@@ -1281,7 +1389,7 @@ EOF
         # If we didn't get the UID from the create response, query for it
         if [ -z "$datasource_uid" ] || [ "$datasource_uid" = "null" ]; then
             log_info "Querying Grafana for existing Prometheus datasource..."
-            local existing_datasources=$(curl -s -u "admin:$admin_password" "http://$grafana_ip:$grafana_port/api/datasources" 2>/dev/null)
+            local existing_datasources=$(curl -s "${curl_auth[@]}" "http://$grafana_ip:$grafana_port/api/datasources" 2>/dev/null)
             datasource_uid=$(echo "$existing_datasources" | jq -r '.[] | select(.type=="prometheus") | .uid' 2>/dev/null || echo "")
             
             if [ -n "$datasource_uid" ] && [ "$datasource_uid" != "null" ]; then
@@ -1373,21 +1481,22 @@ import_davide_dashboard() {
     
     local grafana_port=$(kubectl get svc kube-prometheus-stack-grafana -n monitoring -o jsonpath='{.spec.ports[0].nodePort}' 2>/dev/null || echo "30900")
     
-    # Check if dashboard exists via API (requires admin password)
-    local admin_password=$(kubectl get secret kube-prometheus-stack-grafana -n monitoring -o jsonpath='{.data.admin-password}' 2>/dev/null | base64 -d 2>/dev/null || echo "")
-    
-    if [ -n "$admin_password" ]; then
-        local dashboard_check=$(curl -s "http://admin:$admin_password@$grafana_ip:$grafana_port/api/search?type=dash-db" 2>/dev/null | grep -q "91f6cb1c-9c6a-438b-af3b-5603e7b2db5c" && echo "true" || echo "false")
-        
-        if [ "$dashboard_check" = "true" ]; then
-            log_success "Davide dashboard imported successfully with UID: 91f6cb1c-9c6a-438b-af3b-5603e7b2db5c"
-            log_info "Dashboard URL: http://$grafana_ip:$grafana_port/d/91f6cb1c-9c6a-438b-af3b-5603e7b2db5c/davide-hpa-dashboard"
-            log_info "Prometheus datasource UID: $PROMETHEUS_DATASOURCE_UID"
-        else
-            log_warning "Dashboard import verification failed, but ConfigMap was created"
+    # Check if dashboard exists via API (best-effort; avoid credentials when anonymous Admin is enabled)
+    local curl_auth=()
+    if [ "${grafana_anonymous_admin:-false}" != true ]; then
+        local admin_password=$(kubectl get secret kube-prometheus-stack-grafana -n monitoring -o jsonpath='{.data.admin-password}' 2>/dev/null | base64 -d 2>/dev/null || echo "")
+        if [ -n "${admin_password:-}" ]; then
+            curl_auth=(-u "admin:${admin_password}")
         fi
+    fi
+
+    local dashboard_check=$(curl -s "${curl_auth[@]}" "http://$grafana_ip:$grafana_port/api/search?type=dash-db" 2>/dev/null | grep -q "91f6cb1c-9c6a-438b-af3b-5603e7b2db5c" && echo "true" || echo "false")
+    if [ "$dashboard_check" = "true" ]; then
+        log_success "Davide dashboard imported successfully with UID: 91f6cb1c-9c6a-438b-af3b-5603e7b2db5c"
+        log_info "Dashboard URL: http://$grafana_ip:$grafana_port/d/91f6cb1c-9c6a-438b-af3b-5603e7b2db5c/davide-hpa-dashboard"
+        log_info "Prometheus datasource UID: $PROMETHEUS_DATASOURCE_UID"
     else
-        log_warning "Could not verify dashboard import (admin password not available)"
+        log_warning "Dashboard import verification failed, but ConfigMap was created"
     fi
     
     log_success "Davide dashboard import completed"
@@ -1418,8 +1527,9 @@ import_db_monitoring_dashboard() {
     local temp_dashboard="/tmp/db-monitoring-dashboard-updated.json"
     
     if [ ! -f "$dashboard_file" ]; then
-        log_warning "DB monitoring dashboard file not found: $dashboard_file"
-        return 1
+        # This dashboard is optional – log and continue without failing the whole reset
+        log_warning "DB monitoring dashboard file not found: $dashboard_file (skipping DB dashboard import)"
+        return 0
     fi
     
     # Use the exported UID if available, otherwise use default "prometheus"
@@ -1659,6 +1769,9 @@ apply_hpa_configs() {
     log_info "Applying CPU resource requests for deployments..."
     kubectl apply -f "$PROJECT_ROOT/deathstar-bench/hpa/service_values.yaml" -n socialnetwork --server-side --force-conflicts
     
+    log_info "Applying DB resource limits (MongoDB memory/CPU)..."
+    kubectl apply -f "$PROJECT_ROOT/deathstar-bench/hpa/db_resource_values.yaml" -n socialnetwork --server-side --force-conflicts
+    
     # Apply default HPA configuration
     kubectl apply -f "$PROJECT_ROOT/deathstar-bench/hpa/default_hpa.yaml" -n socialnetwork
     
@@ -1723,10 +1836,13 @@ usage() {
     echo "  --no-dns-resolution  Skip DNS workarounds and use normal hostname resolution (for environments without DNS issues)"
     echo "  --persist-monitoring-data  Persist Prometheus/Grafana data across resets (Kind only)"
     echo "  --remote-write-url   Optional Prometheus remote_write URL (e.g., http://vm:8428/api/v1/write)"
+    echo "  --print-grafana-password  Print Grafana admin password to the reset log (use with care)"
+    echo "  --grafana-require-login   Disable anonymous access (require login)"
     echo "  --help               Show this help message"
     echo ""
     echo "Environment variables:"
     echo "  CLUSTER_NAME         Cluster name (default: socialnetwork)"
+    echo "  PROJECT_ROOT         Override repo root (default: derived from script location)"
     echo ""
     echo "Image Caching:"
     echo "  Images are cached in ./docker_images/ directory to avoid repeated downloads."
@@ -1751,6 +1867,9 @@ main() {
     local no_dns_resolution=false
     local persist_monitoring_data=false
     local remote_write_url=""
+    local print_grafana_password=false
+    # Default: no-login Grafana (anonymous Admin). Use --grafana-require-login to disable.
+    local grafana_anonymous_admin=true
     
     # Parse command line arguments
     while [[ $# -gt 0 ]]; do
@@ -1790,6 +1909,19 @@ main() {
             --remote-write-url)
                 remote_write_url="$2"
                 shift 2
+                ;;
+            --print-grafana-password)
+                print_grafana_password=true
+                shift
+                ;;
+            --grafana-anonymous-admin)
+                # Backwards-compatible alias (now default)
+                grafana_anonymous_admin=true
+                shift
+                ;;
+            --grafana-require-login)
+                grafana_anonymous_admin=false
+                shift
                 ;;
             --help)
                 usage
@@ -1869,6 +2001,11 @@ main() {
         log_info "Monitoring stack should already be running from previous installation"
         # Ensure port-forwarding is running in background even when preserving monitoring
         start_port_forward_background
+    fi
+
+    # Print Grafana credentials to logs (best-effort). Password is only printed if explicitly requested.
+    if kubectl get ns monitoring >/dev/null 2>&1; then
+        print_grafana_credentials "$print_grafana_password" || true
     fi
     
     # Deploy social network application (if not skipped)
