@@ -1,0 +1,159 @@
+=== Run Configuration ===
+Date:             2026-03-09 11:52:52 UTC
+Test Name:        grid_search_vu35_cpu1
+Test Description: HPA Configuration 1
+HPA Label:        hpa1
+Run Directory:    k6/grafana/2026-03-09/grid_search_vu35_cpu1_hpa1_114426Z
+
+=== Command ===
+./hpa_comparison_test.sh deathstar-bench/hpa/context_aware_hpa_dual_metric.yaml deathstar-bench/hpa/default_hpa.yaml grid_search_vu35_cpu1
+
+=== k6 Parameters ===
+K6_DURATION:      7m
+K6_TARGET (VUs):  35
+K6_TIMEOUT:       5s
+K6 CSV Output:    k6/reports/grid_search_vu35_cpu1_hpa1_20260309_114015.csv
+
+=== HPA Configuration ===
+HPA File:         deathstar-bench/hpa/context_aware_hpa_dual_metric.yaml
+HPA YAML (inline):
+# ===== DUAL-METRIC CONTEXT-AWARE HPA CONFIGURATION =====
+#
+# Each downstream service has TWO independent metrics:
+#   1. Its OWN CPU utilization (self-preservation, type: Utilization)
+#   2. Its PARENT service's CPU utilization (proactive scaling, type: AverageValue)
+#
+# The HPA takes the MAX desired replica count from both metrics.
+# This avoids the dilution bug in the combined/pooled metric approach.
+#
+# IMPORTANT: The parent metric MUST use AverageValue, NOT Value.
+# With Value, the formula is: desired = ceil(currentReplicas * metric / target)
+# Since scaling the child doesn't reduce the parent's CPU, this feeds back
+# on itself and runs away to maxReplicas.
+# With AverageValue, the formula is: desired = ceil(metric / target)
+# This gives a stable replica target proportional to the parent's load.
+#
+# Service Chain:
+#   nginx-thrift (entry) -> compose-post -> text-service -> user-mention
+#
+# Parent metrics (defined in prometheus-adapter-values-parent-child.yaml):
+#   compose_post_parent_cpu_utilization_pct  = nginx-thrift per-pod CPU %
+#   text_service_parent_cpu_utilization_pct  = compose-post per-pod CPU %
+#   user_mention_parent_cpu_utilization_pct  = text-service per-pod CPU %
+#
+# AverageValue tuning guide:
+#   averageValue "25" → child gets ceil(parent_cpu / 25) replicas from parent signal
+#     parent at 50% → 2 child replicas, parent at 100% → 4 child replicas
+#   averageValue "50" → more conservative
+#     parent at 50% → 1 child replica, parent at 100% → 2 child replicas
+
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: compose-post-service-hpa
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: compose-post-service
+  minReplicas: 1
+  maxReplicas: 10
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 50
+    # - type: External
+    #   external:
+    #     metric:
+    #       name: compose_post_parent_cpu_utilization_pct
+    #     target:
+    #       type: AverageValue
+    #       averageValue: "25"
+
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: text-service-hpa
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: text-service
+  minReplicas: 1
+  maxReplicas: 10
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 50
+    - type: External
+      external:
+        metric:
+          name: text_service_parent_cpu_utilization_pct
+        target:
+          type: AverageValue
+          averageValue: "25"
+
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: user-mention-service-hpa
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: user-mention-service
+  minReplicas: 1
+  maxReplicas: 10
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 50
+    - type: External
+      external:
+        metric:
+          name: user_mention_parent_cpu_utilization_pct
+        target:
+          type: AverageValue
+          averageValue: "25"
+
+=== Environment ===
+Reset Method:        Hard reset
+Service CPU Mult:    1.0
+Kubernetes Context:  kind-socialnetwork
+Cluster Nodes:
+NAME                          STATUS   ROLES           AGE   VERSION   INTERNAL-IP   EXTERNAL-IP   OS-IMAGE                         KERNEL-VERSION       CONTAINER-RUNTIME
+socialnetwork-control-plane   Ready    control-plane   24m   v1.27.3   172.18.0.3    <none>        Debian GNU/Linux 11 (bullseye)   5.15.0-160-generic   containerd://1.7.1
+socialnetwork-worker          Ready    <none>          24m   v1.27.3   172.18.0.4    <none>        Debian GNU/Linux 11 (bullseye)   5.15.0-160-generic   containerd://1.7.1
+socialnetwork-worker2         Ready    <none>          24m   v1.27.3   172.18.0.2    <none>        Debian GNU/Linux 11 (bullseye)   5.15.0-160-generic   containerd://1.7.1
+
+=== HPA Status at Test Start ===
+NAME                       REFERENCE                         TARGETS                    MINPODS   MAXPODS   REPLICAS   AGE
+compose-post-service-hpa   Deployment/compose-post-service   67%/50%                    1         10        7          12m
+text-service-hpa           Deployment/text-service           47%/50%, 11068m/25 (avg)   1         10        4          12m
+user-mention-service-hpa   Deployment/user-mention-service   66%/50%, 13792m/25 (avg)   1         10        3          12m
+
+=== Deployment Status at Test Start ===
+NAME                     READY   UP-TO-DATE   AVAILABLE   AGE
+compose-post-service     7/7     7            7           17m
+nginx-thrift             1/1     1            1           17m
+text-service             4/4     4            4           17m
+user-mention-service     3/3     3            3           17m
+
+=== Files in config/ ===
+hpa_config.yaml              - HPA YAML used for this run (deathstar-bench/hpa/context_aware_hpa_dual_metric.yaml)
+service_values.yaml          - Service CPU/memory resource definitions
+prometheus_adapter_values.yaml - Prometheus adapter external metrics config
+grafana_dashboard.json       - Grafana dashboard used for metric scraping
+k6_loader.js                 - k6 load test script
+run_details.txt              - This file

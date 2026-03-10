@@ -1,0 +1,8 @@
+[INFO] Generated 7 overlay plots in /home/dlamagna/projects/autoscaling-kubernetes/k6/grafana/2026-03-09/grid_search_vu35_cpu1_comparison_122052Z/
+  overlay_latency.png
+  overlay_throughput.png
+  overlay_failure_rate.png
+  overlay_replicas.png
+  overlay_cpu_utilization.png
+  overlay_cpu_mcore.png
+  overlay_memory.png
