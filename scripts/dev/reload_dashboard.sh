@@ -40,7 +40,7 @@ log_debug() {
 # Allow overriding PROJECT_ROOT via environment, otherwise derive it from this script's location
 if [ -z "${PROJECT_ROOT:-}" ]; then
     SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-    PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+    PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 fi
 
 DASHBOARD_FILE="$PROJECT_ROOT/deathstar-bench/monitoring/davide-dashboard.json"

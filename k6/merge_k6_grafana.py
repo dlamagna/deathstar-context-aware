@@ -23,7 +23,7 @@ def parse_args():
     p = argparse.ArgumentParser(description="Merge k6 CSV + Grafana CSV into a unified report")
     p.add_argument("--k6-csv", required=True, help="Path to raw k6 CSV export")
     p.add_argument("--grafana-csv", required=True, help="Path to grafana_master.csv")
-    p.add_argument("--bucket-sec", type=int, default=15, help="Bucket size in seconds (default: 15, matching Grafana step)")
+    p.add_argument("--bucket-sec", type=int, default=10, help="Bucket size in seconds (default: 10, matching Grafana step)")
     p.add_argument("--out", default=None, help="Output CSV path (default: unified_report.csv next to grafana-csv)")
     return p.parse_args()
 

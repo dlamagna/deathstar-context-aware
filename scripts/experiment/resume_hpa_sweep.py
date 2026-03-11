@@ -27,6 +27,7 @@ import os
 import re
 import subprocess
 import sys
+import traceback
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Dict, Iterable, List, Optional, TextIO, Tuple
@@ -75,7 +76,7 @@ class RunRef:
 
 
 def repo_root() -> str:
-    return os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    return os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
 def list_grafana_dates(root: str) -> List[str]:
@@ -211,15 +212,16 @@ def run_hpa_comparison(
     k6_duration: str,
     k6_timeout: str,
     hard_reset: bool,
+    cpu_mult: float,
 ) -> Tuple[str, str]:
     env = os.environ.copy()
     env["K6_TARGET"] = str(k6_target)
     env["K6_DURATION"] = k6_duration
     env["K6_TIMEOUT"] = k6_timeout
     # Drive CPU scaling through SERVICE_CPU_MULT env used by hpa_comparison_test.sh
-    env["SERVICE_CPU_MULT"] = str(cfg.cpu_mult)
+    env["SERVICE_CPU_MULT"] = str(cpu_mult)
 
-    cmd: List[str] = ["./hpa_comparison_test.sh"]
+    cmd: List[str] = ["scripts/experiment/hpa_comparison_test.sh"]
     if hard_reset:
         cmd.append("--hard-reset-testbed")
     cmd.extend([hpa1, hpa2, test_name])
@@ -255,7 +257,7 @@ def run_hpa_comparison(
 
 def reset_testbed(root: str) -> None:
     cmd = [
-        "./reset_testbed.sh",
+        "scripts/deploy/reset_testbed.sh",
         "--cluster-type",
         "kind",
         "--no-dns-resolution",
@@ -359,97 +361,119 @@ def main() -> None:
         os.makedirs(os.path.dirname(sweep_log_path), exist_ok=True)
         try:
             sweep_log_file = open(sweep_log_path, "a", encoding="utf-8")
-            ts = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
-            sweep_log_file.write(f"\n=== HPA sweep resumed at {ts} UTC ===\n")
+            ts = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
+            sweep_log_file.write(f"\n[{ts}] === HPA sweep resumed ===\n")
             sweep_log_file.flush()
         except OSError as e:
             print(f"[WARN] Failed to open sweep log '{sweep_log_path}' for append: {e}", file=sys.stderr)
             sweep_log_file = None
 
     def log(msg: str) -> None:
+        ts = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
         print(msg)
         if sweep_log_file is not None:
             try:
-                sweep_log_file.write(msg + "\n")
+                sweep_log_file.write(f"[{ts}] {msg}\n")
                 sweep_log_file.flush()
             except OSError:
                 # Don't crash sweep because of logging failure
                 pass
 
-    # Backup service_values.yaml so we can always restore
-    svc_values_path = os.path.join(root, "deathstar-bench", "hpa", "service_values.yaml")
-    if os.path.isfile(svc_values_path):
-        with open(svc_values_path, "r", encoding="utf-8") as f:
-            original_svc_values = f.read()
-    else:
-        original_svc_values = ""
-
-    desired: List[SweepConfig] = [SweepConfig(t, m) for m in cpu_mults for t in targets]
-
-    # Determine which configs are already complete
-    completed: set[Tuple[int, float]] = set()
-    if args.continue_from_existing:
-        existing_runs = scan_existing_runs(root, test_name_prefix=args.test_name_prefix, dates=dates)
-        newest = newest_run_by_key(existing_runs)
-        for cfg in desired:
-            r1 = newest.get((cfg.target, cfg.cpu_mult, 1))
-            r2 = newest.get((cfg.target, cfg.cpu_mult, 2))
-            if r1 and r2 and is_complete_run(r1.run_dir) and is_complete_run(r2.run_dir):
-                completed.add((cfg.target, cfg.cpu_mult))
-
-        log(f"[INFO] Detected {len(completed)}/{len(desired)} completed configs (will skip).")
-
-    # Ensure we start from a clean cluster if we will run anything
-    to_run = [cfg for cfg in desired if (cfg.target, cfg.cpu_mult) not in completed]
-    if to_run:
-        log("\n[INFO] Resetting testbed before resuming sweep...")
-        reset_testbed(root)
-
+    # Wrap the main sweep logic so that any exception is also written
+    # into the sweep log (for long unattended runs).
     try:
-        for i, cfg in enumerate(to_run):
-            log(f"\n[INFO] Sweep progress: {i+1}/{len(to_run)} remaining configs")
+        # Backup service_values.yaml so we can always restore
+        svc_values_path = os.path.join(root, "deathstar-bench", "hpa", "service_values.yaml")
+        if os.path.isfile(svc_values_path):
+            with open(svc_values_path, "r", encoding="utf-8") as f:
+                original_svc_values = f.read()
+        else:
+            original_svc_values = ""
 
+        desired: List[SweepConfig] = [SweepConfig(t, m) for m in cpu_mults for t in targets]
+
+        # Determine which configs are already complete
+        completed: set[Tuple[int, float]] = set()
+        if args.continue_from_existing:
+            existing_runs = scan_existing_runs(root, test_name_prefix=args.test_name_prefix, dates=dates)
+            newest = newest_run_by_key(existing_runs)
+            for cfg in desired:
+                r1 = newest.get((cfg.target, cfg.cpu_mult, 1))
+                r2 = newest.get((cfg.target, cfg.cpu_mult, 2))
+                if r1 and r2 and is_complete_run(r1.run_dir) and is_complete_run(r2.run_dir):
+                    completed.add((cfg.target, cfg.cpu_mult))
+
+            log(f"[INFO] Detected {len(completed)}/{len(desired)} completed configs (will skip).")
+
+        # Ensure we start from a clean cluster if we will run anything
+        to_run = [cfg for cfg in desired if (cfg.target, cfg.cpu_mult) not in completed]
+        if to_run:
+            log("\n[INFO] Resetting testbed before resuming sweep...")
+            reset_testbed(root)
+
+        try:
+            for i, cfg in enumerate(to_run):
+                log(f"\n[INFO] Sweep progress: {i+1}/{len(to_run)} remaining configs")
+
+                test_name = f"{args.test_name_prefix}_vu{cfg.target}_cpu{cfg.cpu_mult:g}"
+                log(
+                    f"=== Sweep config: test_name={test_name}, "
+                    f"target={cfg.target}, duration={args.duration}, timeout={args.timeout} ==="
+                )
+                hpa1_dir, hpa2_dir = run_hpa_comparison(
+                    root=root,
+                    hpa1=args.hpa1,
+                    hpa2=args.hpa2,
+                    test_name=test_name,
+                    k6_target=cfg.target,
+                    k6_duration=args.duration,
+                    k6_timeout=args.timeout,
+                    hard_reset=args.hard_reset_testbed,
+                    cpu_mult=cfg.cpu_mult,
+                )
+
+                log(f"[INFO] Results for {test_name}:")
+                log(f"[INFO]   HPA1 run dir: {hpa1_dir}")
+                log(f"[INFO]   HPA2 run dir: {hpa2_dir}")
+
+                # Reset between configs for isolation
+                if args.reset_between_configs and i < len(to_run) - 1:
+                    log("\n[INFO] Resetting testbed before next configuration...")
+                    reset_testbed(root)
+        finally:
             if original_svc_values:
-                write_scaled_service_values(svc_values_path, cfg.cpu_mult)
+                with open(svc_values_path, "w", encoding="utf-8") as f:
+                    f.write(original_svc_values)
+                log(f"\n[INFO] Restored original service_values.yaml at {svc_values_path}")
+            if sweep_log_file is not None:
+                try:
+                    sweep_log_file.close()
+                except OSError:
+                    pass
 
-            test_name = f"{args.test_name_prefix}_vu{cfg.target}_cpu{cfg.cpu_mult:g}"
-            log(
-                f"=== Sweep config: test_name={test_name}, "
-                f"target={cfg.target}, duration={args.duration}, timeout={args.timeout} ==="
-            )
-            run_hpa_comparison(
-                root=root,
-                hpa1=args.hpa1,
-                hpa2=args.hpa2,
-                test_name=test_name,
-                k6_target=cfg.target,
-                k6_duration=args.duration,
-                k6_timeout=args.timeout,
-                hard_reset=args.hard_reset_testbed,
-            )
-
-            # Reset between configs for isolation
-            if args.reset_between_configs and i < len(to_run) - 1:
-                log("\n[INFO] Resetting testbed before next configuration...")
-                reset_testbed(root)
-    finally:
-        if original_svc_values:
-            with open(svc_values_path, "w", encoding="utf-8") as f:
-                f.write(original_svc_values)
-            log(f"\n[INFO] Restored original service_values.yaml at {svc_values_path}")
+        # Build combined CSV from runs (across days)
+        build_combined_csv_from_runs(
+            root=root,
+            test_name_prefix=args.test_name_prefix,
+            out_csv=out_csv,
+            dates=dates,
+        )
+    except Exception:
+        # Best-effort: write full traceback into the sweep log so it's
+        # obvious why the sweep stopped.
+        tb = traceback.format_exc()
         if sweep_log_file is not None:
             try:
-                sweep_log_file.close()
+                err_ts = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
+                sweep_log_file.write(f"\n[{err_ts}] [ERROR] Sweep failed with exception:\n")
+                sweep_log_file.write(tb)
+                sweep_log_file.write("\n")
+                sweep_log_file.flush()
             except OSError:
                 pass
-
-    # Build combined CSV from runs (across days)
-    build_combined_csv_from_runs(
-        root=root,
-        test_name_prefix=args.test_name_prefix,
-        out_csv=out_csv,
-        dates=dates,
-    )
+        # Also echo to stderr for interactive runs.
+        print(tb, file=sys.stderr)
+        raise
 
 
 if __name__ == "__main__":

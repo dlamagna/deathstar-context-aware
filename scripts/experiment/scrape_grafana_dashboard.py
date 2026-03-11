@@ -104,11 +104,28 @@ def save_master_csv(ts: List[int], col_to_values: Dict[str, List[float]], out_pa
     df[cols].to_csv(out_path, index=False)
 
 
+# Consistent per-service palette shared with overlay_plots.py / 4by4plots.py.
+_SERVICE_COLORS = {
+    "compose-post":         "#2196F3",   # blue
+    "text-service":         "#4CAF50",   # green
+    "user-mention-service": "#FF9800",   # orange
+    "nginx-thrift":         "#9C27B0",   # purple
+}
+_FALLBACK_COLORS = ["#2196F3", "#4CAF50", "#FF9800", "#9C27B0", "#F44336", "#00BCD4"]
+
+
+def _svc_color(name: str, index: int) -> str:
+    for key, color in _SERVICE_COLORS.items():
+        if key in name:
+            return color
+    return _FALLBACK_COLORS[index % len(_FALLBACK_COLORS)]
+
+
 def save_panel_plot(ts: List[int], legend_to_values: Dict[str, List[float]], title: str, out_path: str) -> None:
     plt.figure(figsize=(11, 4))
     x = [datetime.utcfromtimestamp(t) for t in ts]
-    for legend, values in legend_to_values.items():
-        plt.plot(x, values, label=legend, linewidth=1.6)
+    for i, (legend, values) in enumerate(legend_to_values.items()):
+        plt.plot(x, values, label=legend, linewidth=1.6, color=_svc_color(legend, i))
     plt.title(title)
     plt.xlabel('Time (UTC)')
     plt.ylabel('Value')
@@ -209,7 +226,7 @@ def main():
     # Legacy args kept for backward compat; ignored when --out-dir is set
     parser.add_argument('--out-data-dir', default=None, help=argparse.SUPPRESS)
     parser.add_argument('--out-plots-dir', default=None, help=argparse.SUPPRESS)
-    parser.add_argument('--step', type=int, default=15, help='Step seconds for range queries')
+    parser.add_argument('--step', type=int, default=10, help='Step seconds for range queries')
     args = parser.parse_args()
 
     # Resolve output directories

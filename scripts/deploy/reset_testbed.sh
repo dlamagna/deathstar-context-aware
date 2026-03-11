@@ -109,7 +109,7 @@ CLUSTER_NAME="socialnetwork"
 # Allow overriding PROJECT_ROOT via environment, otherwise derive it from this script's location
 if [ -z "${PROJECT_ROOT:-}" ]; then
     SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-    PROJECT_ROOT="$SCRIPT_DIR"
+    PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 fi
 
 CLUSTER_TYPE=""  # Will be set via --cluster-type parameter
@@ -167,7 +167,7 @@ command_exists() {
 
 # Function to start port-forward script in background
 start_port_forward_background() {
-    local pf_script="$PROJECT_ROOT/port-forward.sh"
+    local pf_script="$PROJECT_ROOT/scripts/dev/port-forward.sh"
     if [ ! -f "$pf_script" ]; then
         log_warning "Port-forward script not found: $pf_script"
         return 0
@@ -515,10 +515,28 @@ install_prerequisites() {
     log_success "Prerequisites check completed"
 }
 
+# Best-effort: remove any stale Kind node containers that would conflict with
+# the new cluster creation (e.g. "socialnetwork-worker" still present).
+cleanup_stale_kind_nodes() {
+    if ! command_exists docker; then
+        return 0
+    fi
+
+    # Match containers whose names contain "<CLUSTER_NAME>-"
+    local stale_ids
+    stale_ids=$(docker ps -aq --filter "name=${CLUSTER_NAME}-" 2>/dev/null || true)
+    if [ -n "$stale_ids" ]; then
+        log_warning "Removing stale Kind node containers for cluster '$CLUSTER_NAME' (best effort)..."
+        # shellcheck disable=SC2086
+        docker rm -f $stale_ids >/dev/null 2>&1 || log_warning "Failed to remove some stale Kind containers (continuing)"
+    fi
+}
+
 # Function to create Kind cluster
 create_cluster() {
     if [ "$CLUSTER_TYPE" = "kind" ]; then
         log_info "Creating Kind cluster: $CLUSTER_NAME"
+        cleanup_stale_kind_nodes
         
         # Create cluster with proper configuration and increased resources
         if [ "$persist_monitoring_data" = true ]; then
@@ -1055,6 +1073,10 @@ EOF
           --set prometheus.prometheusSpec.storageSpec.volumeClaimTemplate.spec.selector.matchLabels.pv=prometheus
         )
     fi
+    helm_args+=(
+      --set prometheus.prometheusSpec.scrapeInterval=10s
+      --set prometheus.prometheusSpec.evaluationInterval=10s
+    )
     if [ -n "${remote_write_url:-}" ]; then
         helm_args+=(--set prometheus.prometheusSpec.remoteWrite[0].url="${remote_write_url}")
     fi

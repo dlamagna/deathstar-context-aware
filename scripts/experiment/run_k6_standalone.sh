@@ -95,7 +95,7 @@ if [ ! -f "$HPA_FILE" ]; then
 fi
 
 # Set up log directory
-PROJECT_ROOT="$(cd "$(dirname "$0")" && pwd)"
+PROJECT_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 LOG_DIR="$PROJECT_ROOT/logs"
 mkdir -p "$LOG_DIR"
 
@@ -371,7 +371,7 @@ mkdir -p k6/grafana/data k6/grafana/plots
 # Use ref-name as base name of HPA file
 REF_NAME=$(basename "$HPA_FILE")
 print_status "Scraping Grafana dashboard queries for time window ${start_window}..${end_window} (±60s)"
-python3 k6/scrape_grafana_dashboard.py \
+python3 scripts/experiment/scrape_grafana_dashboard.py \
   --dashboard-json deathstar-bench/monitoring/davide-dashboard.json \
   --prom "$prom_url" \
   --start "$start_window" \

@@ -31,6 +31,7 @@ temp/
 *.swp
 *.swo
 *~
+.claude/
 
 # Python
 __pycache__/

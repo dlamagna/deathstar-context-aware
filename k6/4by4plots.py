@@ -20,7 +20,21 @@ import matplotlib.pyplot as plt
 import pandas as pd
 
 
-COLORS = ["#4F83CC", "#E57342", "#FFB300", "#7CB342", "#8E24AA"]
+# Consistent per-service palette shared with overlay_plots.py.
+SERVICE_COLORS = {
+    "compose-post":         "#2196F3",   # blue
+    "text-service":         "#4CAF50",   # green
+    "user-mention-service": "#FF9800",   # orange
+    "nginx-thrift":         "#9C27B0",   # purple
+}
+FALLBACK_COLORS = ["#2196F3", "#4CAF50", "#FF9800", "#9C27B0", "#F44336", "#00BCD4"]
+
+
+def _svc_color(svc_name: str, index: int) -> str:
+    for key, color in SERVICE_COLORS.items():
+        if key in svc_name:
+            return color
+    return FALLBACK_COLORS[index % len(FALLBACK_COLORS)]
 
 
 def parse_args():
@@ -68,9 +82,9 @@ def main():
     title_suffix = f" ({args.label})" if args.label else ""
 
     # Panel 1: HTTP Success Rate
-    axs[0].plot(df["t"], df["success_pct"], color=COLORS[0], linewidth=1.6)
+    axs[0].plot(df["t"], df["success_pct"], color="#2196F3", linewidth=1.6)
     axs[0].set_ylabel("HTTP Success (%)")
-    axs[0].set_ylim(max(0, df["success_pct"].min() - 5), 105)
+    axs[0].set_ylim(0, 100)
     axs[0].grid(True, linestyle="--", linewidth=0.5, color="gray")
     axs[0].spines["top"].set_visible(False)
     axs[0].spines["right"].set_visible(False)
@@ -78,13 +92,14 @@ def main():
     # Panel 2: HTTP Error Rate
     axs[1].plot(df["t"], df["k6_fail_pct"], color="#E57342", linewidth=1.6)
     axs[1].set_ylabel("HTTP Error (%)")
+    axs[1].set_ylim(0, 100)
     axs[1].grid(True, linestyle="--", linewidth=0.5, color="gray")
     axs[1].spines["top"].set_visible(False)
     axs[1].spines["right"].set_visible(False)
 
     # Panel 3: Replicas per Service
     for i, col in enumerate(replica_cols):
-        axs[2].plot(df["t"], df[col], label=friendly_name(col), color=COLORS[i % len(COLORS)], linewidth=1.6)
+        axs[2].plot(df["t"], df[col], label=friendly_name(col), color=_svc_color(col, i), linewidth=1.6)
     axs[2].set_ylabel("Replicas")
     axs[2].yaxis.set_major_locator(plt.MaxNLocator(integer=True))
     axs[2].grid(True, linestyle="--", linewidth=0.5, color="gray")
@@ -93,7 +108,7 @@ def main():
 
     # Panel 4: CPU Consumption (mcore)
     for i, col in enumerate(cpu_cols):
-        axs[3].plot(df["t"], df[col], label=friendly_name(col), color=COLORS[i % len(COLORS)], linewidth=1.6)
+        axs[3].plot(df["t"], df[col], label=friendly_name(col), color=_svc_color(col, i), linewidth=1.6)
     axs[3].set_ylabel("CPU (mcore)")
     axs[3].set_xlabel("Time (s)")
     axs[3].grid(True, linestyle="--", linewidth=0.5, color="gray")

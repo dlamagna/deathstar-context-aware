@@ -2,12 +2,15 @@
 """
 Sweep k6/HPA configurations and print key metrics for both HPAs.
 
-This script:
-  - Varies k6 load parameters (VUs, duration).
+This script supports two load modes:
+  - VU mode (default): Varies virtual users (VUs) with staged ramp-up
+  - RPS mode: Varies requests per second (RPS) with constant arrival rate
+
+For each configuration:
   - Optionally varies CPU sizes for the main service chain
     (compose-post-service, text-service, user-mention-service, nginx-thrift)
     via scalar multipliers applied to deathstar-bench/hpa/service_values.yaml.
-  - For each configuration, runs hpa_comparison_test.sh for:
+  - Runs hpa_comparison_test.sh for both HPAs:
       * context-aware HPA (HPA1)
       * default HPA (HPA2)
   - Reads the resulting unified_report.csv for each HPA run and:
@@ -16,7 +19,7 @@ This script:
           - weighted p95 latency (ms)
           - weighted failure rate (%)
           - max replicas per service (compose-post, text-service, user-mention-service)
-          - k6 + CPU configuration metadata
+          - k6 + CPU configuration metadata + load mode metadata
 """
 
 import argparse
@@ -24,22 +27,30 @@ import os
 import re
 import subprocess
 import sys
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, List, Optional, Tuple
 
 import pandas as pd
+import logging
 
+# Configure logging with timestamps
+logging.basicConfig(
+    format='%(asctime)s [%(levelname)s] %(message)s',
+    level=logging.INFO,
+    datefmt='%Y-%m-%d %H:%M:%S'
+)
 
-RE_HPA_DIR_HPA1 = re.compile(r"^HPA_RUN_DIR_HPA1=(.+)$")
-RE_HPA_DIR_HPA2 = re.compile(r"^HPA_RUN_DIR_HPA2=(.+)$")
-RE_HPA_LOG_FILE = re.compile(r"^Log file:\s+(.+)$")
-
+# Regex patterns to extract HPA run directories and log file paths from hpa_comparison_test.sh output
+RE_HPA_DIR_HPA1 = re.compile(r'HPA1 grafana dir:\s+(.+)')
+RE_HPA_DIR_HPA2 = re.compile(r'HPA2 grafana dir:\s+(.+)')
+RE_HPA_LOG_FILE = re.compile(r'HPA comparison log for test.*:\s+(.+)')
 
 def run_hpa_comparison(
     hpa1: str,
     hpa2: str,
     test_name: str,
-    k6_target: int,
+    load_mode: str,
+    load_target: int,
     k6_duration: str,
     k6_timeout: str,
     cpu_mult: float,
@@ -49,24 +60,37 @@ def run_hpa_comparison(
     """
     Run ./hpa_comparison_test.sh with the given k6 settings and return
     the grafana run directories for HPA1 and HPA2 as printed by the script.
+
+    Args:
+        load_mode: 'vu' (virtual users) or 'rps' (requests per second)
+        load_target: number of VUs (if load_mode='vu') or RPS (if load_mode='rps')
     """
     env = os.environ.copy()
-    env["K6_TARGET"] = str(k6_target)
+    env["K6_LOAD_MODE"] = load_mode
     env["K6_DURATION"] = k6_duration
     env["K6_TIMEOUT"] = k6_timeout
     # Drive CPU scaling through the SERVICE_CPU_MULT env used by hpa_comparison_test.sh
     env["SERVICE_CPU_MULT"] = str(cpu_mult)
 
-    cmd: List[str] = ["./hpa_comparison_test.sh"]
+    if load_mode == "rps":
+        env["K6_RPS"] = str(load_target)
+        env["K6_RPS_PRE_ALLOC_VUS"] = "100"
+        env["K6_RPS_MAX_VUS"] = "300"
+        target_desc = f"RPS={load_target}"
+    else:
+        env["K6_TARGET"] = str(load_target)
+        target_desc = f"VUs={load_target}"
+
+    cmd: List[str] = ["scripts/experiment/hpa_comparison_test.sh"]
     if hard_reset:
         cmd.append("--hard-reset-testbed")
     cmd.extend([hpa1, hpa2, test_name])
 
-    print(f"\n=== Running config: target={k6_target}, duration={k6_duration}, timeout={k6_timeout} ===")
+    print(f"\n=== Running config: {target_desc}, duration={k6_duration}, timeout={k6_timeout} ===")
     print("Command:", " ".join(cmd))
 
     # Repo root (same as cwd for the subprocess)
-    repo_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    repo_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
     # Append a short entry to the sweep-level log, if configured.
     if sweep_log_path is not None:
@@ -74,7 +98,8 @@ def run_hpa_comparison(
             with open(sweep_log_path, "a", encoding="utf-8") as f:
                 f.write(
                     f"\n=== Sweep config: test_name={test_name}, "
-                    f"target={k6_target}, duration={k6_duration}, timeout={k6_timeout} ===\n"
+                    f"load_mode={load_mode}, load_target={load_target}, "
+                    f"duration={k6_duration}, timeout={k6_timeout} ===\n"
                 )
                 f.write("Command: " + " ".join(cmd) + "\n")
         except OSError as e:
@@ -201,9 +226,20 @@ def main() -> None:
         help="Prefix for TEST_NAME passed to hpa_comparison_test.sh (default: %(default)s)",
     )
     parser.add_argument(
+        "--load-mode",
+        choices=["vu", "rps"],
+        default="vu",
+        help="Load mode: 'vu' (virtual users, default) or 'rps' (requests per second)",
+    )
+    parser.add_argument(
         "--targets",
-        default="40,50,60,80,100",
-        help="Comma-separated list of K6_TARGET (VUs) values to test (default: %(default)s)",
+        default=None,
+        help="Comma-separated list of K6_TARGET (VUs) values to test. Used with --load-mode=vu (default: 40,50,60,80,100)",
+    )
+    parser.add_argument(
+        "--rps-targets",
+        default=None,
+        help="Comma-separated list of RPS values to test. Used with --load-mode=rps (default: 10,20,30,50,100)",
     )
     parser.add_argument(
         "--duration",
@@ -241,11 +277,21 @@ def main() -> None:
 
     args = parser.parse_args()
 
-    try:
-        targets = [int(x) for x in args.targets.split(",") if x.strip()]
-    except ValueError:
-        print(f"Invalid --targets '{args.targets}', must be comma-separated integers", file=sys.stderr)
-        sys.exit(1)
+    # Determine load targets based on mode
+    if args.load_mode == "vu":
+        targets_str = args.targets if args.targets else "40,50,60,80,100"
+        try:
+            targets = [int(x) for x in targets_str.split(",") if x.strip()]
+        except ValueError:
+            print(f"Invalid --targets '{targets_str}', must be comma-separated integers", file=sys.stderr)
+            sys.exit(1)
+    else:  # rps
+        targets_str = args.rps_targets if args.rps_targets else "10,20,30,50,100"
+        try:
+            targets = [int(x) for x in targets_str.split(",") if x.strip()]
+        except ValueError:
+            print(f"Invalid --rps-targets '{targets_str}', must be comma-separated integers", file=sys.stderr)
+            sys.exit(1)
 
     try:
         cpu_mults = [float(x) for x in args.cpu_mults.split(",") if x.strip()]
@@ -253,14 +299,18 @@ def main() -> None:
         print(f"Invalid --cpu-mults '{args.cpu_mults}', must be comma-separated floats", file=sys.stderr)
         sys.exit(1)
 
-    print("Will sweep configurations over:")
-    print(f"  HPA1:          {args.hpa1}")
-    print(f"  HPA2:          {args.hpa2}")
-    print(f"  K6_TARGETs:    {targets}")
-    print(f"  CPU mults:     {cpu_mults}")
-    print(f"  K6_DURATION:   {args.duration}")
-    print(f"  K6_TIMEOUT:    {args.timeout}")
-    print(f"  Hard reset:    {args.hard_reset_testbed}")
+    logging.info("Will sweep configurations over:")
+    logging.info(f"  HPA1:          {args.hpa1}")
+    logging.info(f"  HPA2:          {args.hpa2}")
+    logging.info(f"  Load mode:     {args.load_mode}")
+    if args.load_mode == "vu":
+        logging.info(f"  K6_TARGETs:    {targets}")
+    else:
+        logging.info(f"  K6_RPS:        {targets}")
+    logging.info(f"  CPU mults:     {cpu_mults}")
+    logging.info(f"  K6_DURATION:   {args.duration}")
+    logging.info(f"  K6_TIMEOUT:    {args.timeout}")
+    logging.info(f"  Hard reset:    {args.hard_reset_testbed}")
 
     # Base CPU values (mcore) as defined in deathstar-bench/hpa/service_values.yaml
     base_compose_cpu_m = 60
@@ -269,7 +319,7 @@ def main() -> None:
     base_nginx_cpu_m = 100
 
     # Path to service_values.yaml (what hpa_comparison_test.sh applies)
-    repo_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    repo_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     svc_values_path = os.path.join(repo_root, "deathstar-bench", "hpa", "service_values.yaml")
 
     # Sweep-level log file capturing Python-side sweep orchestration.
@@ -283,7 +333,11 @@ def main() -> None:
             f.write(f"Timestamp (UTC): {sweep_ts}\n")
             f.write(f"HPA1: {args.hpa1}\n")
             f.write(f"HPA2: {args.hpa2}\n")
-            f.write(f"K6_TARGETs: {targets}\n")
+            f.write(f"Load mode: {args.load_mode}\n")
+            if args.load_mode == "vu":
+                f.write(f"K6_TARGETs: {targets}\n")
+            else:
+                f.write(f"K6_RPS: {targets}\n")
             f.write(f"CPU mults: {cpu_mults}\n")
             f.write(f"K6_DURATION: {args.duration}\n")
             f.write(f"K6_TIMEOUT: {args.timeout}\n")
@@ -298,7 +352,7 @@ def main() -> None:
     # Ensure the testbed starts from a clean, known-good state before the sweep.
     print("\n[INFO] Performing initial testbed reset before HPA sweep...")
     initial_reset_cmd = [
-        "./reset_testbed.sh",
+        "scripts/deploy/reset_testbed.sh",
         "--cluster-type",
         "kind",
         "--no-dns-resolution",
@@ -318,13 +372,18 @@ def main() -> None:
 
     for cpu_mult in cpu_mults:
         for target in targets:
-            test_name = f"{args.test_name_prefix}_vu{target}_cpu{cpu_mult:g}"
+            # Generate test name based on load mode
+            if args.load_mode == "vu":
+                test_name = f"{args.test_name_prefix}_vu{target}_cpu{cpu_mult:g}"
+            else:
+                test_name = f"{args.test_name_prefix}_rps{target}_cpu{cpu_mult:g}"
 
             hpa1_dir, hpa2_dir = run_hpa_comparison(
                 hpa1=args.hpa1,
                 hpa2=args.hpa2,
                 test_name=test_name,
-                k6_target=target,
+                load_mode=args.load_mode,
+                load_target=target,
                 k6_duration=args.duration,
                 k6_timeout=args.timeout,
                 cpu_mult=cpu_mult,
@@ -338,37 +397,35 @@ def main() -> None:
             m1 = extract_metrics(hpa1_dir)
             m2 = extract_metrics(hpa2_dir)
 
+            # Common result fields
+            common_result = {
+                "load_mode": args.load_mode,
+                "load_target": target,
+                "cpu_mult": cpu_mult,
+                "compose_cpu_m": base_compose_cpu_m * cpu_mult,
+                "text_cpu_m": base_text_cpu_m * cpu_mult,
+                "mention_cpu_m": base_mention_cpu_m * cpu_mult,
+                "nginx_cpu_m": base_nginx_cpu_m * cpu_mult,
+                "test_name": test_name,
+                "k6_duration": args.duration,
+                "k6_timeout": args.timeout,
+            }
+
             results.append(
                 {
-                    "target": target,
-                    "cpu_mult": cpu_mult,
-                    "compose_cpu_m": base_compose_cpu_m * cpu_mult,
-                    "text_cpu_m": base_text_cpu_m * cpu_mult,
-                    "mention_cpu_m": base_mention_cpu_m * cpu_mult,
-                    "nginx_cpu_m": base_nginx_cpu_m * cpu_mult,
+                    **common_result,
                     "hpa": "context-aware",
                     "hpa_yaml": args.hpa1,
-                    "test_name": test_name,
                     "run_dir": hpa1_dir,
-                    "k6_duration": args.duration,
-                    "k6_timeout": args.timeout,
                     **m1,
                 }
             )
             results.append(
                 {
-                    "target": target,
-                    "cpu_mult": cpu_mult,
-                    "compose_cpu_m": base_compose_cpu_m * cpu_mult,
-                    "text_cpu_m": base_text_cpu_m * cpu_mult,
-                    "mention_cpu_m": base_mention_cpu_m * cpu_mult,
-                    "nginx_cpu_m": base_nginx_cpu_m * cpu_mult,
+                    **common_result,
                     "hpa": "default",
                     "hpa_yaml": args.hpa2,
-                    "test_name": test_name,
                     "run_dir": hpa2_dir,
-                    "k6_duration": args.duration,
-                    "k6_timeout": args.timeout,
                     **m2,
                 }
             )
@@ -379,7 +436,7 @@ def main() -> None:
             if not (is_last_cpu and is_last_target):
                 print("\n[INFO] Resetting testbed before next sweep configuration...")
                 reset_cmd = [
-                    "./reset_testbed.sh",
+                    "scripts/deploy/reset_testbed.sh",
                     "--cluster-type",
                     "kind",
                     "--no-dns-resolution",
@@ -402,7 +459,7 @@ def main() -> None:
     out_csv = args.out_csv
     if out_csv is None:
         # Default location under repo root
-        repo_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        repo_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
         out_csv = os.path.join(repo_root, "k6", "hpa_sweep_results.csv")
 
     try:
@@ -415,19 +472,34 @@ def main() -> None:
 
     # Print summary table
     print("\n=== Sweep Summary ===")
-    header = (
-        f"{'K6_TARGET':>8}  {'cpu_mult':>8}  {'HPA':>13}  "
-        f"{'p95_ms':>10}  {'fail_%':>8}  "
-        f"{'maxR_comp':>9}  {'maxR_text':>9}  {'maxR_mention':>11}"
-    )
-    print(header)
-    print("-" * len(header))
-    for row in sorted(results, key=lambda r: (r["target"], r["cpu_mult"], r["hpa"])):  # type: ignore[index]
-        print(
-            f"{row['target']:>8}  {row['cpu_mult']:8.2f}  {row['hpa']:>13}  "
-            f"{row['weighted_p95_ms']:10.1f}  {row['weighted_fail_pct']:8.2f}  "
-            f"{row['max_repl_compose']:9.1f}  {row['max_repl_text']:9.1f}  {row['max_repl_mention']:11.1f}"
+    if args.load_mode == "vu":
+        header = (
+            f"{'K6_TARGET':>8}  {'cpu_mult':>8}  {'HPA':>13}  "
+            f"{'p95_ms':>10}  {'fail_%':>8}  "
+            f"{'maxR_comp':>9}  {'maxR_text':>9}  {'maxR_mention':>11}"
         )
+        print(header)
+        print("-" * len(header))
+        for row in sorted(results, key=lambda r: (r["load_target"], r["cpu_mult"], r["hpa"])):  # type: ignore[index]
+            print(
+                f"{row['load_target']:>8}  {row['cpu_mult']:8.2f}  {row['hpa']:>13}  "
+                f"{row['weighted_p95_ms']:10.1f}  {row['weighted_fail_pct']:8.2f}  "
+                f"{row['max_repl_compose']:9.1f}  {row['max_repl_text']:9.1f}  {row['max_repl_mention']:11.1f}"
+            )
+    else:
+        header = (
+            f"{'K6_RPS':>8}  {'cpu_mult':>8}  {'HPA':>13}  "
+            f"{'p95_ms':>10}  {'fail_%':>8}  "
+            f"{'maxR_comp':>9}  {'maxR_text':>9}  {'maxR_mention':>11}"
+        )
+        print(header)
+        print("-" * len(header))
+        for row in sorted(results, key=lambda r: (r["load_target"], r["cpu_mult"], r["hpa"])):  # type: ignore[index]
+            print(
+                f"{row['load_target']:>8}  {row['cpu_mult']:8.2f}  {row['hpa']:>13}  "
+                f"{row['weighted_p95_ms']:10.1f}  {row['weighted_fail_pct']:8.2f}  "
+                f"{row['max_repl_compose']:9.1f}  {row['max_repl_text']:9.1f}  {row['max_repl_mention']:11.1f}"
+            )
 
 
 if __name__ == "__main__":

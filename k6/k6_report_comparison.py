@@ -265,13 +265,13 @@ def process_buckets(timestamps, latencies, bin_width):
 def create_simple_comparison_plots(latencies_base, latencies_comp, base_label, comp_label, plots_dir=PLOTS_DIR):
     """Create simplified comparison plots for fast analysis"""
     
-    # 1. Latency Distribution Comparison
+    # 1. Latency Distribution Comparison (normalised so totals are comparable)
     plt.figure(figsize=(12, 6))
-    plt.hist(latencies_base, bins=50, alpha=0.6, label=base_label, color='blue', edgecolor='black')
-    plt.hist(latencies_comp, bins=50, alpha=0.6, label=comp_label, color='red', edgecolor='black')
+    plt.hist(latencies_base, bins=50, alpha=0.6, label=f'{base_label} (n={len(latencies_base):,})', color='blue', edgecolor='black', density=True)
+    plt.hist(latencies_comp, bins=50, alpha=0.6, label=f'{comp_label} (n={len(latencies_comp):,})', color='red', edgecolor='black', density=True)
     plt.xlabel('Latency (ms)')
-    plt.ylabel('Frequency')
-    plt.title(f'Latency Distribution Comparison: {base_label} vs {comp_label}')
+    plt.ylabel('Density (normalised)')
+    plt.title(f'Latency Distribution Comparison: {base_label} vs {comp_label} (normalised)')
     plt.legend()
     plt.grid(True, alpha=0.3)
     plt.tight_layout()

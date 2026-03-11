@@ -15,7 +15,7 @@ set -e  # Exit on any error
 # Logging to file (stream live to logs/ via tee)
 # All script output and Python subprocess output will be captured in the log file
 # Use line-buffered tee when available so output appears on terminal immediately
-PROJECT_ROOT="$(cd "$(dirname "$0")" && pwd)"
+PROJECT_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 LOG_DIR="$PROJECT_ROOT/logs"
 mkdir -p "$LOG_DIR"
 LOG_FILE="$LOG_DIR/hpa_comparison_$(date +%Y%m%d_%H%M%S).log"
@@ -71,17 +71,21 @@ apply_service_values_with_multiplier() {
     # If multiplier is unset or effectively 1, apply as-is.
     if [ -z "$mult" ] || [ "$mult" = "1" ] || [ "$mult" = "1.0" ]; then
         print_status "Applying service CPU values without scaling (multiplier=${mult:-1})..."
+        SERVICE_VALUES_APPLIED_FILE="$base_file"
         kubectl apply -f "$base_file" -n socialnetwork --server-side --force-conflicts
         return $?
     fi
 
-    print_status "Applying service CPU values with multiplier $mult (compose/text/mention/nginx)..."
+    print_status "Applying service CPU values with multiplier $mult (compose/text/mention only; nginx fixed at 300m)..."
 
-    # Scale any cpu: "<number>m" lines by the multiplier. This keeps YAML structure intact.
+    # Scale any cpu: "<number>m" lines by the multiplier for the downstream services only.
+    # nginx-thrift CPU stays fixed at its baseline (300m) so it does not become a bottleneck.
     local tmp_file
     tmp_file=$(mktemp)
     awk -v mult="$mult" '
-        /cpu: *"[0-9]+m"/ {
+        /name:[[:space:]]*nginx-thrift/ { in_nginx=1 }
+        /name:[[:space:]]*[A-Za-z0-9_.-]+/ && $2 != "nginx-thrift" { in_nginx=0 }
+        /cpu: *"[0-9]+m"/ && !in_nginx {
             if (match($0, /"([0-9]+)m"/, m)) {
                 v = int(m[1] * mult + 0.5);
                 if (v < 1) v = 1;
@@ -91,9 +95,11 @@ apply_service_values_with_multiplier() {
         { print }
     ' "$base_file" > "$tmp_file"
 
+    # Remember which service values file was actually applied for this run.
+    SERVICE_VALUES_APPLIED_FILE="$tmp_file"
+
     kubectl apply -f "$tmp_file" -n socialnetwork --server-side --force-conflicts
     local rc=$?
-    rm -f "$tmp_file"
     return $rc
 }
 
@@ -116,8 +122,8 @@ show_usage() {
     echo "  K6_DURATION       - k6 test duration (default: 120s)"
     echo "  K6_TARGET         - k6 target VUs (default: 50)"
     echo "  K6_TIMEOUT        - k6 request timeout (default: 5s)"
-    echo "  SERVICE_CPU_MULT  - CPU multiplier for compose-post/text/user-mention/nginx services (default: 1.0)"
-    echo "                       e.g. SERVICE_CPU_MULT=0.8 scales 60m -> 48m, 100m -> 80m"
+    echo "  SERVICE_CPU_MULT  - CPU multiplier for compose-post/text/user-mention services (default: 1.0)"
+    echo "                       nginx-thrift CPU stays fixed at its baseline (e.g. 300m)"
     echo ""
     echo "  HPA-specific overrides (take precedence over global values):"
     echo "  K6_TIMEOUT_HPA1  - k6 timeout for first HPA test"
@@ -291,8 +297,9 @@ wait_for_deployment_ready() {
             if [ "$error_pods" -gt 0 ]; then
                 print_warning "Found $error_pods pods not running for $deployment_name"
                 kubectl describe pods -n socialnetwork -l app="$deployment_name" | grep -A 5 -B 5 "Events:"
+
             fi
-            
+
             attempt=$((attempt + 1))
             if [ $attempt -le $max_attempts ]; then
                 print_status "Retrying in 30 seconds..."
@@ -375,9 +382,10 @@ save_run_config() {
         cp "$hpa_file" "$config_dir/hpa_config.yaml"
     fi
 
-    # Copy service resource definitions
-    if [ -f "deathstar-bench/hpa/service_values.yaml" ]; then
-        cp "deathstar-bench/hpa/service_values.yaml" "$config_dir/service_values.yaml"
+    # Copy service resource definitions (the exact values used for this run, if available)
+    local svc_src="${SERVICE_VALUES_APPLIED_FILE:-deathstar-bench/hpa/service_values.yaml}"
+    if [ -f "$svc_src" ]; then
+        cp "$svc_src" "$config_dir/service_values.yaml"
     fi
 
     # Copy Prometheus adapter values
@@ -493,13 +501,14 @@ run_k6_test() {
     fi
     print_status "Scraping Grafana dashboard queries for time window ${start_window}..${end_window} (±60s)"
     local scrape_output
-    scrape_output=$(python3 k6/scrape_grafana_dashboard.py \
+    scrape_output=$(python3 scripts/experiment/scrape_grafana_dashboard.py \
       --dashboard-json deathstar-bench/monitoring/davide-dashboard.json \
       --prom "$prom_url" \
       --start "$start_window" \
       --end "$end_window" \
       --ref-name "$grafana_ref" \
-      --out-dir k6/grafana 2>&1) || print_warning "Grafana scraping failed for $test_desc"
+      --out-dir k6/grafana \
+      --step 10 2>&1) || print_warning "Grafana scraping failed for $test_desc"
     echo "$scrape_output"
 
     # Merge k6 + Grafana into a unified report, then generate per-run plots
@@ -512,7 +521,7 @@ run_k6_test() {
         python3 k6/merge_k6_grafana.py \
           --k6-csv "$output_file" \
           --grafana-csv "$grafana_run_dir/grafana_master.csv" \
-          --bucket-sec 15 || print_warning "k6+Grafana merge failed for $test_desc"
+          --bucket-sec 10 || print_warning "k6+Grafana merge failed for $test_desc"
 
         # Per-run k6 plots (latency, throughput, success rate, distribution)
         print_status "Generating per-run k6 plots..."
@@ -719,7 +728,7 @@ hard_reset_testbed() {
     print_status "=== Hard Reset: Calling reset_testbed.sh for Full Testbed Reset ==="
     
     # Check if reset_testbed.sh exists
-    local reset_script="./reset_testbed.sh"
+    local reset_script="$PROJECT_ROOT/scripts/deploy/reset_testbed.sh"
     if [ ! -f "$reset_script" ]; then
         print_error "reset_testbed.sh script not found at: $reset_script"
         print_error "Please ensure the script exists before using --hard-reset-testbed"

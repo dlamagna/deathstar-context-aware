@@ -41,10 +41,30 @@ class _Tee:
         self._file.close()
 
 
+# One color per service — HPA differentiation is via linestyle only.
+# A = context-aware (dashed), B = default (solid).
 COLOR_A = "#4F83CC"
 COLOR_B = "#E57342"
-SERVICE_COLORS_A = ["#4F83CC", "#2196F3", "#1565C0", "#0D47A1"]
-SERVICE_COLORS_B = ["#E57342", "#FF7043", "#D84315", "#BF360C"]
+
+# Consistent per-service palette (colour-blind friendly, high contrast).
+SERVICE_COLORS = {
+    "compose-post":         "#2196F3",   # blue
+    "text-service":         "#4CAF50",   # green
+    "user-mention-service": "#FF9800",   # orange
+    "nginx-thrift":         "#9C27B0",   # purple
+}
+SERVICE_COLOR_LIST = ["#2196F3", "#4CAF50", "#FF9800", "#9C27B0", "#F44336", "#00BCD4"]
+
+LINESTYLE_A = "--"       # context-aware  (HPA A / first CSV)
+LINESTYLE_B = "-"        # default        (HPA B / second CSV)
+
+
+def _svc_color(svc_name: str, index: int) -> str:
+    """Return a deterministic colour for a service name."""
+    for key, color in SERVICE_COLORS.items():
+        if key in svc_name:
+            return color
+    return SERVICE_COLOR_LIST[index % len(SERVICE_COLOR_LIST)]
 
 
 def friendly(col):
@@ -80,9 +100,9 @@ def find_cols(df, pattern, exclude=None):
 
 
 def plot_single_metric(ax, x, dfA, dfB, col, label_a, label_b, stdA, stdB):
-    ax.plot(x, dfA[col], color=COLOR_A, linewidth=1.5, label=label_a)
+    ax.plot(x, dfA[col], color=COLOR_A, linewidth=1.5, label=label_a, linestyle=LINESTYLE_A)
     shade(ax, x, dfA[col], stdA, COLOR_A)
-    ax.plot(x, dfB[col], color=COLOR_B, linewidth=1.5, label=label_b, linestyle="--")
+    ax.plot(x, dfB[col], color=COLOR_B, linewidth=1.5, label=label_b, linestyle=LINESTYLE_B)
     shade(ax, x, dfB[col], stdB, COLOR_B)
 
 
@@ -112,7 +132,7 @@ def generate_overlays(dfA, dfB, out_dir, label_a, label_b, stdA=None, stdB=None)
             ax.set_ylabel(col.replace("k6_", "").replace("_", " "))
             ax.legend(fontsize=8)
             ax.grid(True, alpha=0.3)
-        axes[-1].set_xlabel("Bucket (15s)")
+        axes[-1].set_xlabel("Bucket (10s)")
         fig.suptitle(f"Latency Overlay: {label_a} vs {label_b}", fontsize=13, fontweight="bold")
         plt.tight_layout(rect=[0, 0, 1, 0.96])
         saved.append(save(fig, out_dir, "overlay_latency.png"))
@@ -122,7 +142,7 @@ def generate_overlays(dfA, dfB, out_dir, label_a, label_b, stdA=None, stdB=None)
         fig, ax = plt.subplots(figsize=(12, 4))
         plot_single_metric(ax, x, dfA, dfB, "k6_rps", label_a, label_b, stdA, stdB)
         ax.set_ylabel("Requests / sec")
-        ax.set_xlabel("Bucket (15s)")
+        ax.set_xlabel("Bucket (10s)")
         ax.set_title(f"Throughput Overlay: {label_a} vs {label_b}", fontsize=13, fontweight="bold")
         ax.legend(fontsize=9)
         ax.grid(True, alpha=0.3)
@@ -134,7 +154,8 @@ def generate_overlays(dfA, dfB, out_dir, label_a, label_b, stdA=None, stdB=None)
         fig, ax = plt.subplots(figsize=(12, 4))
         plot_single_metric(ax, x, dfA, dfB, "k6_fail_pct", label_a, label_b, stdA, stdB)
         ax.set_ylabel("Failure %")
-        ax.set_xlabel("Bucket (15s)")
+        ax.set_ylim(0, 100)
+        ax.set_xlabel("Bucket (10s)")
         ax.set_title(f"Failure Rate Overlay: {label_a} vs {label_b}", fontsize=13, fontweight="bold")
         ax.legend(fontsize=9)
         ax.grid(True, alpha=0.3)
@@ -148,12 +169,11 @@ def generate_overlays(dfA, dfB, out_dir, label_a, label_b, stdA=None, stdB=None)
         fig, ax = plt.subplots(figsize=(12, 5))
         for i, col in enumerate(rep_cols):
             svc = friendly(col)
-            ca = SERVICE_COLORS_A[i % len(SERVICE_COLORS_A)]
-            cb = SERVICE_COLORS_B[i % len(SERVICE_COLORS_B)]
-            ax.plot(x, dfA[col], color=ca, linewidth=1.4, label=f"{label_a} - {svc}")
-            ax.plot(x, dfB[col], color=cb, linewidth=1.4, label=f"{label_b} - {svc}", linestyle="--")
+            c = _svc_color(svc, i)
+            ax.plot(x, dfA[col], color=c, linewidth=1.4, linestyle=LINESTYLE_A, label=f"{label_a} - {svc}")
+            ax.plot(x, dfB[col], color=c, linewidth=1.4, linestyle=LINESTYLE_B, label=f"{label_b} - {svc}")
         ax.set_ylabel("Replicas")
-        ax.set_xlabel("Bucket (15s)")
+        ax.set_xlabel("Bucket (10s)")
         ax.yaxis.set_major_locator(plt.MaxNLocator(integer=True))
         ax.set_title(f"Replicas Overlay: {label_a} vs {label_b}", fontsize=13, fontweight="bold")
         ax.legend(fontsize=7, loc="best", ncol=2)
@@ -168,12 +188,11 @@ def generate_overlays(dfA, dfB, out_dir, label_a, label_b, stdA=None, stdB=None)
         fig, ax = plt.subplots(figsize=(12, 5))
         for i, col in enumerate(cpu_cols):
             svc = friendly(col)
-            ca = SERVICE_COLORS_A[i % len(SERVICE_COLORS_A)]
-            cb = SERVICE_COLORS_B[i % len(SERVICE_COLORS_B)]
-            ax.plot(x, dfA[col], color=ca, linewidth=1.4, label=f"{label_a} - {svc}")
-            ax.plot(x, dfB[col], color=cb, linewidth=1.4, label=f"{label_b} - {svc}", linestyle="--")
+            c = _svc_color(svc, i)
+            ax.plot(x, dfA[col], color=c, linewidth=1.4, linestyle=LINESTYLE_A, label=f"{label_a} - {svc}")
+            ax.plot(x, dfB[col], color=c, linewidth=1.4, linestyle=LINESTYLE_B, label=f"{label_b} - {svc}")
         ax.set_ylabel("CPU Utilization %")
-        ax.set_xlabel("Bucket (15s)")
+        ax.set_xlabel("Bucket (10s)")
         ax.set_title(f"CPU Utilization Overlay: {label_a} vs {label_b}", fontsize=13, fontweight="bold")
         ax.legend(fontsize=7, loc="best", ncol=2)
         ax.grid(True, alpha=0.3)
@@ -187,12 +206,11 @@ def generate_overlays(dfA, dfB, out_dir, label_a, label_b, stdA=None, stdB=None)
         fig, ax = plt.subplots(figsize=(12, 5))
         for i, col in enumerate(mcore_cols):
             svc = friendly(col)
-            ca = SERVICE_COLORS_A[i % len(SERVICE_COLORS_A)]
-            cb = SERVICE_COLORS_B[i % len(SERVICE_COLORS_B)]
-            ax.plot(x, dfA[col], color=ca, linewidth=1.4, label=f"{label_a} - {svc}")
-            ax.plot(x, dfB[col], color=cb, linewidth=1.4, label=f"{label_b} - {svc}", linestyle="--")
+            c = _svc_color(svc, i)
+            ax.plot(x, dfA[col], color=c, linewidth=1.4, linestyle=LINESTYLE_A, label=f"{label_a} - {svc}")
+            ax.plot(x, dfB[col], color=c, linewidth=1.4, linestyle=LINESTYLE_B, label=f"{label_b} - {svc}")
         ax.set_ylabel("CPU (mcore)")
-        ax.set_xlabel("Bucket (15s)")
+        ax.set_xlabel("Bucket (10s)")
         ax.set_title(f"CPU Consumption Overlay: {label_a} vs {label_b}", fontsize=13, fontweight="bold")
         ax.legend(fontsize=7, loc="best", ncol=2)
         ax.grid(True, alpha=0.3)
@@ -206,12 +224,11 @@ def generate_overlays(dfA, dfB, out_dir, label_a, label_b, stdA=None, stdB=None)
         fig, ax = plt.subplots(figsize=(12, 5))
         for i, col in enumerate(mem_cols):
             svc = friendly(col)
-            ca = SERVICE_COLORS_A[i % len(SERVICE_COLORS_A)]
-            cb = SERVICE_COLORS_B[i % len(SERVICE_COLORS_B)]
-            ax.plot(x, dfA[col], color=ca, linewidth=1.4, label=f"{label_a} - {svc}")
-            ax.plot(x, dfB[col], color=cb, linewidth=1.4, label=f"{label_b} - {svc}", linestyle="--")
+            c = _svc_color(svc, i)
+            ax.plot(x, dfA[col], color=c, linewidth=1.4, linestyle=LINESTYLE_A, label=f"{label_a} - {svc}")
+            ax.plot(x, dfB[col], color=c, linewidth=1.4, linestyle=LINESTYLE_B, label=f"{label_b} - {svc}")
         ax.set_ylabel("Memory (MB)")
-        ax.set_xlabel("Bucket (15s)")
+        ax.set_xlabel("Bucket (10s)")
         ax.set_title(f"Memory Overlay: {label_a} vs {label_b}", fontsize=13, fontweight="bold")
         ax.legend(fontsize=7, loc="best", ncol=2)
         ax.grid(True, alpha=0.3)
@@ -225,12 +242,11 @@ def generate_overlays(dfA, dfB, out_dir, label_a, label_b, stdA=None, stdB=None)
         fig, ax = plt.subplots(figsize=(12, 5))
         for i, col in enumerate(net_cols):
             svc = friendly(col)
-            ca = SERVICE_COLORS_A[i % len(SERVICE_COLORS_A)]
-            cb = SERVICE_COLORS_B[i % len(SERVICE_COLORS_B)]
-            ax.plot(x, dfA[col], color=ca, linewidth=1.4, label=f"{label_a} - {svc}")
-            ax.plot(x, dfB[col], color=cb, linewidth=1.4, label=f"{label_b} - {svc}", linestyle="--")
+            c = _svc_color(svc, i)
+            ax.plot(x, dfA[col], color=c, linewidth=1.4, linestyle=LINESTYLE_A, label=f"{label_a} - {svc}")
+            ax.plot(x, dfB[col], color=c, linewidth=1.4, linestyle=LINESTYLE_B, label=f"{label_b} - {svc}")
         ax.set_ylabel("Network I/O (KB/s)")
-        ax.set_xlabel("Bucket (15s)")
+        ax.set_xlabel("Bucket (10s)")
         ax.set_title(f"Network I/O Overlay: {label_a} vs {label_b}", fontsize=13, fontweight="bold")
         ax.legend(fontsize=7, loc="best", ncol=2)
         ax.grid(True, alpha=0.3)

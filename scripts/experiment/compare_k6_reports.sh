@@ -67,7 +67,7 @@ REPORT_B="${POS[1]}"
 if [ ! -f "$REPORT_A" ]; then print_error "Report A not found: $REPORT_A"; exit 1; fi
 if [ ! -f "$REPORT_B" ]; then print_error "Report B not found: $REPORT_B"; exit 1; fi
 
-PROJECT_ROOT="$(cd "$(dirname "$0")" && pwd)"
+PROJECT_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 LOG_DIR="$PROJECT_ROOT/logs"
 mkdir -p "$LOG_DIR"
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)

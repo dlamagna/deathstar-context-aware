@@ -117,7 +117,7 @@ def plot_averaged(mean_df, std_df, out_dir, label, color_idx=0):
             ax.plot(x, mean_df[col], label=short, color=c, linewidth=1.5)
             ax.fill_between(x, mean_df[col] - std_df[col], mean_df[col] + std_df[col],
                             alpha=0.2, color=c)
-        ax.set_xlabel("Bucket (15s intervals)")
+        ax.set_xlabel("Bucket (10s intervals)")
         ax.set_ylabel(ylabel)
         ax.set_title(f"{label} - {name} (mean +/- stddev, n={len(std_df)})")
         ax.legend(fontsize=8, loc="best")
@@ -197,6 +197,65 @@ def plot_comparison(mean1, std1, mean2, std2, out_dir, label_a, label_b):
     print(f"[INFO] Saved aggregated comparison plot to {out_dir}/aggregated_comparison.png")
 
 
+def find_k6_csv(run_dir):
+    """Return the k6 raw CSV path stored in config/run_details.txt, or None."""
+    details = os.path.join(run_dir, "config", "run_details.txt")
+    if not os.path.isfile(details):
+        return None
+    with open(details) as f:
+        for line in f:
+            if line.startswith("K6 CSV Output:"):
+                path = line.split(":", 1)[1].strip()
+                # Path may be relative to the project root (one level up from k6/)
+                if not os.path.isabs(path):
+                    project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+                    path = os.path.join(project_root, path)
+                return path if os.path.isfile(path) else None
+    return None
+
+
+def load_raw_latencies(run_dirs):
+    """Pool raw http_req_duration values from k6 CSVs across all run dirs."""
+    all_latencies = []
+    for d in run_dirs:
+        csv_path = find_k6_csv(d)
+        if csv_path is None:
+            print(f"[WARN] No k6 CSV found for {d}, skipping for latency distribution")
+            continue
+        try:
+            df = pd.read_csv(csv_path, low_memory=False)
+            rows = df[df.iloc[:, 0] == "http_req_duration"]
+            vals = pd.to_numeric(rows.iloc[:, 2], errors="coerce").dropna().tolist()
+            all_latencies.extend(vals)
+            print(f"[INFO] Loaded {len(vals):,} latency samples from {csv_path}")
+        except Exception as e:
+            print(f"[WARN] Failed to load latencies from {csv_path}: {e}")
+    return all_latencies
+
+
+def plot_latency_distribution(latencies_a, latencies_b, out_dir, label_a, label_b):
+    """Normalised latency distribution histogram for two pooled sets of raw latencies."""
+    if not latencies_a or not latencies_b:
+        print("[WARN] Insufficient raw latency data for distribution plot, skipping")
+        return
+
+    fig, ax = plt.subplots(figsize=(12, 6))
+    ax.hist(latencies_a, bins=60, alpha=0.6, density=True,
+            label=f"{label_a} (n={len(latencies_a):,})", color="#4F83CC", edgecolor="black", linewidth=0.3)
+    ax.hist(latencies_b, bins=60, alpha=0.6, density=True,
+            label=f"{label_b} (n={len(latencies_b):,})", color="#E57342", edgecolor="black", linewidth=0.3)
+    ax.set_xlabel("Latency (ms)")
+    ax.set_ylabel("Density (normalised)")
+    ax.set_title(f"Aggregated Latency Distribution: {label_a} vs {label_b} (normalised, all iterations pooled)")
+    ax.legend()
+    ax.grid(True, alpha=0.3)
+    plt.tight_layout()
+    out_path = os.path.join(out_dir, "comparison_latency_distribution.png")
+    plt.savefig(out_path, dpi=200, bbox_inches="tight")
+    plt.close()
+    print(f"[INFO] Saved aggregated latency distribution to {out_path}")
+
+
 def print_summary_table(mean1, mean2, label_a, label_b):
     """Print a text summary table of key aggregated metrics."""
     metrics = [
@@ -273,6 +332,12 @@ def main():
     # Overlay plots (with stddev bands from the aggregation)
     from overlay_plots import generate_overlays
     generate_overlays(mean1, mean2, comp_dir, args.label_a, args.label_b, std1, std2)
+
+    # Latency distribution: pool raw per-request latencies across all iterations
+    print(f"[INFO] Loading raw k6 latencies for distribution plot...")
+    lat_a = load_raw_latencies(args.hpa1_dirs)
+    lat_b = load_raw_latencies(args.hpa2_dirs)
+    plot_latency_distribution(lat_a, lat_b, comp_dir, args.label_a, args.label_b)
 
     print_summary_table(mean1, mean2, args.label_a, args.label_b)
 

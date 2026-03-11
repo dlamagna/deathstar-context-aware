@@ -97,7 +97,7 @@ def main() -> None:
 
     args = parser.parse_args()
 
-    repo_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    repo_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     grafana_root = os.path.join(repo_root, "k6", "grafana", args.date)
 
     if not os.path.isdir(grafana_root):
