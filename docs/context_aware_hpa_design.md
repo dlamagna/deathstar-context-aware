@@ -128,7 +128,7 @@ metrics:
   - type: External
     external:
       metric:
-        name: text_service_parent_cpu_utilization_pct   # = compose-post CPU
+        name: text_service_parent_cpu_utilization_pct   # = compose-post CPU (parent of text-service)
       target:
         type: Value
         value: "50"
@@ -281,3 +281,171 @@ This means:
 | Runaway | Dual-metric with `Value` | `desired = ceil(replicas × metric/target)` feeds back when metric is external | Child scales to maxReplicas regardless of own CPU |
 
 Both bugs share a common theme: **the HPA formulas assume the target deployment controls the metric it's being scaled on.** When this assumption is violated (as with parent-aware external metrics), the standard behavior breaks down. The fix — `AverageValue` — uses a formula that doesn't depend on the current replica count, breaking the feedback loop.
+
+---
+
+## Operational Issues Discovered in March 2026 Testing
+
+### Bug 4: `<unknown>` External Metrics After Prometheus Adapter Restart
+
+#### Symptom
+
+After `helm upgrade --install prometheus-adapter` (run at the start of `hpa_comparison_test.sh`), the HPA reported `<unknown>` for all external metrics for ~40–90 seconds:
+
+```
+text-service-hpa   Deployment/text-service   1%/50%, <unknown>/25 (avg)   1   10   1
+```
+
+When a metric is `<unknown>`, the HPA ignores it entirely and scales only on the remaining metrics. This meant the context-aware parent signal was silently disabled at the start of every test without any visible error.
+
+This was identified by comparing a good run (2026-03-09) against recent broken runs (2026-03-11). The good run's `run_details.txt` showed `11068m/25 (avg)` while broken runs showed `<unknown>/25 (avg)` during the critical early scaling window.
+
+#### Root Cause
+
+The prometheus-adapter pod restarts when `helm upgrade` is called, even if the values haven't changed. The HPA controller polls metrics every 15s. With no readiness wait after the upgrade, the first 2–4 HPA evaluation cycles completed against a pod that wasn't serving yet, returning `<unknown>`. Since the early load phase is when the parent signal matters most, losing these first 2 minutes of proactive scaling was significant.
+
+#### Fix
+
+Added `kubectl rollout status` wait after every prometheus-adapter helm upgrade:
+
+```bash
+helm upgrade --install prometheus-adapter prometheus-community/prometheus-adapter \
+    -n monitoring ... -f prom/prometheus-adapter-values-parent-child.yaml
+
+kubectl rollout status deployment/prometheus-adapter -n monitoring --timeout=120s
+```
+
+Added HPA metric verification function in `hpa_comparison_test.sh` that checks for `<unknown>` before each k6 test:
+
+```bash
+verify_hpa_metrics() {
+    # prints kubectl get hpa output
+    # if <unknown> found: prints loud WARNING banner + adapter pod status
+    # if clean: prints "[SUCCESS] All HPA metrics are resolving"
+}
+```
+
+---
+
+### Bug 5: Hard Reset Wiping Prometheus Adapter Config Before HPA2
+
+#### Symptom
+
+The inter-test hard reset (`reset_testbed.sh --persist-monitoring-data`) reinstalls the prometheus-adapter via helm with **default values**, overwriting the custom `prometheus-adapter-values-parent-child.yaml` rules. The HPA2 (context-aware) test then ran without the external metrics definitions, behaving identically to the default HPA.
+
+This silently invalidated all HPA2 results until caught — the k6 data looked normal (no 100% failures), but the context-aware signals were absent.
+
+#### Root Cause
+
+`reset_testbed.sh` reinstalls monitoring components including prometheus-adapter during the hard reset phase. The custom values file is not referenced by the reset script; it only applies the default chart values.
+
+#### Fix
+
+Added a Step 5 in `hpa_comparison_test.sh` that re-applies the prometheus-adapter with the custom values file immediately before the HPA2 test, after the hard reset:
+
+```bash
+# Step 5: Re-apply Prometheus Adapter config (hard reset wiped it) then test HPA2
+helm upgrade --install prometheus-adapter prometheus-community/prometheus-adapter \
+    -n monitoring \
+    --set prometheus.url=http://$prom_ip \
+    --set prometheus.port=9090 \
+    -f prom/prometheus-adapter-values-parent-child.yaml
+
+kubectl rollout status deployment/prometheus-adapter -n monitoring --timeout=120s
+verify_hpa_metrics "HPA2" "$HPA2_FILE"
+```
+
+---
+
+### Bug 6: User-Mention Parent Signal Suppressed by Context-Aware Text-Service Scaling
+
+#### Symptom
+
+Under the context-aware HPA, `text-service` scaled significantly earlier than the default HPA (as intended). However, `user-mention-service` scaled at roughly the same time under both HPAs — as if it were purely reactive to its own CPU.
+
+#### Root Cause
+
+The call graph for DeathStarBench social network is a **linear chain**:
+
+```
+nginx-thrift → compose-post-service → text-service → user-mention-service
+```
+
+`text-service` is the direct parent of `user-mention-service`. The `user_mention_parent_cpu_utilization_pct` metric was therefore correctly reading from text-service, but was defined using a `sum()` denominator:
+
+```promql
+sum(rate(container_cpu_usage_seconds_total{container="text-service"}[2m]))
+/
+sum(kube_pod_container_resource_requests{resource="cpu", container="text-service"}) * 100
+```
+
+When text-service scales from 1 → 4 replicas under the context-aware HPA, the denominator increases 4×. Even though total CPU usage is high, the **per-replica utilization** drops sharply — e.g., from 80% to 20%. User-mention-service sees this already-suppressed value as its parent signal. With a target of `averageValue: "25"`:
+
+```
+desiredReplicas = ceil(20 / 25) = 1
+```
+
+The signal that was supposed to trigger proactive scaling was instead **already corrected away** by text-service's own proactive scaling. The more aggressively text-service scaled, the weaker the parent signal became for user-mention.
+
+#### Fix
+
+Replace the `sum()` denominator with `min()` — using the smallest per-pod CPU request (a constant) rather than the total across all replicas:
+
+```promql
+sum(rate(container_cpu_usage_seconds_total{namespace="socialnetwork", container="text-service"}[2m]))
+/
+min(kube_pod_container_resource_requests{resource="cpu", namespace="socialnetwork", container="text-service"}) * 100
+```
+
+With `min()`, the denominator is always the CPU request of a single pod (a constant). As text-service scales from 1 → N replicas, the numerator (total CPU usage across all pods) grows with load, and the metric now reflects **total load relative to one pod's capacity** rather than average per-pod utilization.
+
+The `averageValue` target must also be recalibrated. With the `sum()` metric the value ranged 0–100 (average utilization %). With the `min()` metric the value can exceed 100 (e.g. text-service at 4 replicas × 50% utilization = 200). The target is set to `"50"` so that one user-mention replica is provisioned per 50% of one-pod-capacity of text-service total load:
+
+- text-service total load at 1× capacity (100) → ceil(100/50) = 2 user-mention replicas
+- text-service total load at 2× capacity (200) → ceil(200/50) = 4 user-mention replicas
+
+This means user-mention tracks text-service 1:1 at normal load and scales proportionally when text-service is overloaded, with no dilution as text-service scales.
+
+The fix is applied in `prom/prometheus-adapter-values-parent-child.yaml` for the `user_mention_parent_cpu_utilization_pct` rule, and `averageValue` is set to `"50"` in `deathstar-bench/hpa/context_aware_hpa_dual_metric.yaml`.
+
+
+---
+
+## Experimental Methodology: Open-Loop Load Generation (RPS Mode)
+
+### Problem with Virtual User (VU) Mode
+
+Early experiments used k6's default **VU (virtual user) model**, a *closed-loop* load generator: each VU sends a request, waits for the response, then immediately sends the next. Throughput is therefore:
+
+```
+actual RPS = num_VUs / mean_response_time
+```
+
+This creates a critical confound when comparing two HPA configurations with different scaling speeds:
+
+1. During ramp-up, the slower configuration (e.g. compose-post still at 1 replica) has **higher response times**.
+2. Higher response times → **fewer requests/second** dispatched to that configuration.
+3. Fewer requests → **less CPU pressure** on upstream services.
+4. Less CPU pressure → **upstream HPA delays scaling further**.
+5. Delayed scaling → **even higher response times**.
+
+The result is a self-reinforcing feedback loop: the configuration that scales more slowly receives a lighter workload precisely because it is slow, masking its true performance deficit and making the comparison unfair. In concrete terms, context-aware HPA's proactive scaling of `text-service` and `user-mention-service` made those services respond faster, which *reduced backpressure on* `compose-post`, which *suppressed* compose-post's CPU signal, causing compose-post to scale with 1–2 fewer replicas than the default HPA — despite both configurations using an identical CPU-only HPA for compose-post. Over 5 runs, context-aware HPA consistently showed **+39% worse P50 latency** than default HPA under VU mode, which was the opposite of the expected result.
+
+### Fix: Constant Arrival Rate (RPS Mode)
+
+The experiment was switched to k6's **`ramping-arrival-rate` executor**, an *open-loop* load generator. k6 dispatches requests at a **fixed rate** regardless of response time. Slow responses accumulate as latency or failures, not as reduced throughput. Both HPA configurations receive an identical request stream, making the comparison fair.
+
+**Staged profile (45 RPS target, 11-minute sustained phase):**
+
+| Stage | Duration | Rate |
+|---|---|---|
+| Warmup | 30 s | 0 → 27 RPS (60%) |
+| Ramp | 30 s | 27 → 45 RPS |
+| Sustained | 11 min | 45 RPS (constant) |
+| Cooldown | 30 s | 45 → 0 RPS |
+
+Pre-allocated VUs: 200 (max 400) — sized to handle 45 RPS × 5 s worst-case timeout without dropping arrivals.
+
+**Why open-loop is more realistic:** in production, client request rates are driven by external users, not by the system's own response time. A slow backend does not cause clients to stop sending requests — it causes latency to rise and queues to build. The constant arrival rate model reflects this correctly.
+
+**Configuration:** set via `K6_LOAD_MODE=rps K6_RPS=45` in `reset_then_test.sh`. The k6 script (`k6/k6_loader.js`) supports both modes; `vu` mode remains available for backwards compatibility.
