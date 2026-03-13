@@ -41,15 +41,21 @@ git submodule update --init --recursive
 # cp -r temp_loader_repo/socialNetwork/loader "$LOADER_TARGET"
 # rm -rf temp_loader_repo
 
+# 3b. Fix init container URL: helm chart uses fork 'dimoibiehg' which lacks keys/lua scripts
+echo "🔧 Fixing init container URLs (dimoibiehg → delimitrou)..."
+find "$BASE_DIR/socialNetwork/helm-chart" -name "values.yaml" \
+  -exec sed -i 's|dimoibiehg/DeathStarBench|delimitrou/DeathStarBench|g' {} \;
+echo "✅ Init container URLs fixed."
+
 # 4. Deploy Social Network app using Helm
 echo "📦 Deploying Social Network using Helm..."
 cd "$BASE_DIR/socialNetwork"
 helm install social-network ./helm-chart/socialnetwork -n socialnetwork
 echo "✅ DeathStarBench reinstalled."
 
-# 5. Wait for pods to be ready
+# 5. Wait for pods to be ready (non-fatal: NodePort patch must always run)
 echo "⏳ Waiting for pods to be ready..."
-kubectl wait --for=condition=Ready pod --all -n socialnetwork --timeout=300s
+kubectl wait --for=condition=Ready pod --all -n socialnetwork --timeout=300s || true
 
 echo "Exposing Nginx as NodePort..."
 kubectl patch svc nginx-thrift -n socialnetwork -p '{"spec": {"type": "NodePort"}}'
