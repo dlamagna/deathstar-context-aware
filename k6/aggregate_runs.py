@@ -20,11 +20,17 @@ import argparse
 import os
 import sys
 
+import glob
+
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+
+# Default base directory for auto-discovery (searched recursively across all date subfolders).
+# Override with --grafana-dir if you want to limit to a specific date.
+GRAFANA_DIR = os.path.join(os.path.dirname(__file__), "grafana")
 
 
 class _Tee:
@@ -42,8 +48,12 @@ class _Tee:
         self._file.close()
 
 
-def load_unified_csvs(dirs):
-    """Load unified_report.csv from each directory, return list of DataFrames."""
+def load_unified_csvs(dirs, max_fail_pct=95.0):
+    """Load unified_report.csv from each directory, return list of DataFrames.
+
+    Skips any run whose mean k6_fail_pct >= max_fail_pct (default 95%), which
+    indicates the run was entirely failed / the testbed was not healthy.
+    """
     frames = []
     for d in dirs:
         csv_path = os.path.join(d, "unified_report.csv")
@@ -51,6 +61,11 @@ def load_unified_csvs(dirs):
             print(f"[WARN] Missing {csv_path}, skipping")
             continue
         df = pd.read_csv(csv_path)
+        if "k6_fail_pct" in df.columns:
+            mean_fail = pd.to_numeric(df["k6_fail_pct"], errors="coerce").mean()
+            if mean_fail >= max_fail_pct:
+                print(f"[SKIP] {csv_path}: mean failure rate {mean_fail:.1f}% >= {max_fail_pct}%, excluding from aggregation")
+                continue
         frames.append(df)
         print(f"[INFO] Loaded {csv_path}: {len(df)} rows, {len(df.columns)} cols")
     return frames
@@ -158,6 +173,9 @@ def plot_comparison(mean1, std1, mean2, std2, out_dir, label_a, label_b):
         ax.set_xlabel("Bucket")
         ax.legend(fontsize=8)
         ax.grid(True, alpha=0.3)
+        if col == "k6_fail_pct":
+            max_fail = max(mean1[col].max(), mean2[col].max())
+            ax.set_ylim(0, max_fail * 1.1 if max_fail > 0 else 1.0)
 
     if replica_cols:
         ax = axes[4]
@@ -282,20 +300,78 @@ def print_summary_table(mean1, mean2, label_a, label_b):
     print(f"{'='*80}\n")
 
 
+def _discover_run_dirs(grafana_dir, last_n=None):
+    """Auto-discover completed hpa1/hpa2 run dirs under grafana_dir.
+
+    Searches both directly under grafana_dir and one level deeper (date subfolders),
+    so it works whether you point it at a specific date (k6/grafana/2026-03-12) or
+    the base directory (k6/grafana) covering all dates / overnight runs.
+
+    A run dir is considered complete if it contains a unified_report.csv.
+    Dirs are sorted chronologically by their embedded timestamp suffix (*_HHMMSSZ),
+    with the date folder providing the primary sort key across overnight runs.
+    last_n caps to the N most recent completed pairs.
+    """
+    def _find(pattern):
+        return sorted(
+            d for d in glob.glob(pattern, recursive=True)
+            if os.path.isfile(os.path.join(d, "unified_report.csv"))
+        )
+
+    # Search both direct children and one level deeper (date subfolders)
+    hpa1 = _find(os.path.join(grafana_dir, "*_hpa1_*")) + \
+           _find(os.path.join(grafana_dir, "*", "*_hpa1_*"))
+    hpa2 = _find(os.path.join(grafana_dir, "*_hpa2_*")) + \
+           _find(os.path.join(grafana_dir, "*", "*_hpa2_*"))
+
+    # Deduplicate and sort by full path (date folder + timestamp gives correct order)
+    hpa1 = sorted(set(hpa1))
+    hpa2 = sorted(set(hpa2))
+
+    if last_n is not None:
+        hpa1 = hpa1[-last_n:]
+        hpa2 = hpa2[-last_n:]
+    return hpa1, hpa2
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="Aggregate multiple HPA test iterations into averaged results",
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
-    parser.add_argument("--hpa1-dirs", nargs="+", required=True,
+    # Manual mode
+    parser.add_argument("--hpa1-dirs", nargs="+", default=None,
                         help="Grafana run directories for HPA1 iterations")
-    parser.add_argument("--hpa2-dirs", nargs="+", required=True,
+    parser.add_argument("--hpa2-dirs", nargs="+", default=None,
                         help="Grafana run directories for HPA2 iterations")
+    # Auto-discovery mode
+    parser.add_argument("--grafana-dir", default=None,
+                        help=f"Auto-discover completed hpa1/hpa2 run dirs under this directory. "
+                             f"Searches across date subfolders, so you can point it at the base "
+                             f"k6/grafana/ dir to cover overnight runs. "
+                             f"Defaults to GRAFANA_DIR={GRAFANA_DIR}. "
+                             f"Use --last-n to limit to a subset.")
+    parser.add_argument("--last-n", type=int, default=None,
+                        help="With --grafana-dir: only use the N most recent completed pairs")
     parser.add_argument("--out-dir", required=True,
                         help="Output directory for aggregated results")
     parser.add_argument("--label-a", default="HPA1", help="Label for HPA1")
     parser.add_argument("--label-b", default="HPA2", help="Label for HPA2")
     args = parser.parse_args()
+
+    # Resolve dirs — manual takes priority, otherwise auto-discovery
+    if args.hpa1_dirs and args.hpa2_dirs:
+        hpa1_dirs = args.hpa1_dirs
+        hpa2_dirs = args.hpa2_dirs
+    else:
+        search_dir = args.grafana_dir or GRAFANA_DIR
+        hpa1_dirs, hpa2_dirs = _discover_run_dirs(search_dir, args.last_n)
+        if not hpa1_dirs or not hpa2_dirs:
+            print(f"[ERROR] No completed run dirs found under {search_dir}")
+            sys.exit(1)
+        print(f"[INFO] Auto-discovered {len(hpa1_dirs)} HPA1 and {len(hpa2_dirs)} HPA2 runs from {search_dir}")
+        for d in hpa1_dirs: print(f"  HPA1: {d}")
+        for d in hpa2_dirs: print(f"  HPA2: {d}")
 
     hpa1_dir = os.path.join(args.out_dir, "hpa1")
     hpa2_dir = os.path.join(args.out_dir, "hpa2")
@@ -306,10 +382,10 @@ def main():
     _tee = _Tee(sys.stdout, os.path.join(comp_dir, "aggregation.log"))
     sys.stdout = _tee
 
-    print(f"[INFO] Loading HPA1 runs ({len(args.hpa1_dirs)} iterations)...")
-    hpa1_frames = load_unified_csvs(args.hpa1_dirs)
-    print(f"[INFO] Loading HPA2 runs ({len(args.hpa2_dirs)} iterations)...")
-    hpa2_frames = load_unified_csvs(args.hpa2_dirs)
+    print(f"[INFO] Loading HPA1 runs ({len(hpa1_dirs)} iterations)...")
+    hpa1_frames = load_unified_csvs(hpa1_dirs)
+    print(f"[INFO] Loading HPA2 runs ({len(hpa2_dirs)} iterations)...")
+    hpa2_frames = load_unified_csvs(hpa2_dirs)
 
     if len(hpa1_frames) < 1 or len(hpa2_frames) < 1:
         print("[ERROR] Need at least 1 valid run for each HPA group")
@@ -335,8 +411,8 @@ def main():
 
     # Latency distribution: pool raw per-request latencies across all iterations
     print(f"[INFO] Loading raw k6 latencies for distribution plot...")
-    lat_a = load_raw_latencies(args.hpa1_dirs)
-    lat_b = load_raw_latencies(args.hpa2_dirs)
+    lat_a = load_raw_latencies(hpa1_dirs)
+    lat_b = load_raw_latencies(hpa2_dirs)
     plot_latency_distribution(lat_a, lat_b, comp_dir, args.label_a, args.label_b)
 
     print_summary_table(mean1, mean2, args.label_a, args.label_b)
