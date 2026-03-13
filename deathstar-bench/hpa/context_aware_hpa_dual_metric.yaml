@@ -14,13 +14,15 @@
 # With AverageValue, the formula is: desired = ceil(metric / target)
 # This gives a stable replica target proportional to the parent's load.
 #
-# Service Chain:
-#   nginx-thrift (entry) -> compose-post -> text-service -> user-mention
+# Service chain: nginx-thrift -> compose-post -> text-service -> user-mention-service
 #
 # Parent metrics (defined in prometheus-adapter-values-parent-child.yaml):
 #   compose_post_parent_cpu_utilization_pct  = nginx-thrift per-pod CPU %
 #   text_service_parent_cpu_utilization_pct  = compose-post per-pod CPU %
-#   user_mention_parent_cpu_utilization_pct  = text-service per-pod CPU %
+#   user_mention_parent_cpu_utilization_pct  = text-service total load / one-pod-capacity
+#     ^ Uses min() denominator (not sum()) so the signal is not diluted when
+#       text-service scales. averageValue=50 → user-mention tracks text-service 1:1
+#       at normal load (text-service at 50%), scales proportionally when overloaded.
 #
 # AverageValue tuning guide:
 #   averageValue "25" → child gets ceil(parent_cpu / 25) replicas from parent signal
@@ -46,13 +48,6 @@ spec:
         target:
           type: Utilization
           averageUtilization: 50
-    # - type: External
-    #   external:
-    #     metric:
-    #       name: compose_post_parent_cpu_utilization_pct
-    #     target:
-    #       type: AverageValue
-    #       averageValue: "25"
 
 ---
 apiVersion: autoscaling/v2
@@ -106,4 +101,4 @@ spec:
           name: user_mention_parent_cpu_utilization_pct
         target:
           type: AverageValue
-          averageValue: "25"
+          averageValue: "50"   # min() denominator: 50 = text-service HPA threshold, so user-mention tracks text-service 1:1 at normal load
