@@ -2033,10 +2033,15 @@ main() {
     # Deploy social network application (if not skipped)
     if [ "$skip_social" = false ]; then
         deploy_social_network
+        # Always ensure nginx-thrift is NodePort regardless of pod wait outcome
+        log_info "Ensuring nginx-thrift service is NodePort..."
+        kubectl patch svc nginx-thrift -n socialnetwork -p '{"spec": {"type": "NodePort"}}' \
+            && log_success "nginx-thrift service is NodePort" \
+            || log_warning "Failed to patch nginx-thrift to NodePort (will retry later)"
     else
         log_info "Skipping social network application deployment"
     fi
-    
+
     # Apply HPA configurations (if not skipped)
     if [ "$skip_hpa" = false ]; then
         if [ "$skip_monitoring" = false ]; then
@@ -2048,7 +2053,7 @@ main() {
     else
         log_info "Skipping HPA configuration"
     fi
-    
+
     # Verify installation
     verify_installation
     

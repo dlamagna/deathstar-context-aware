@@ -2,9 +2,10 @@
 set -euo pipefail
 
 usage() {
-  echo "Usage: $0 --iterations <n> [--continue-from <reset_then_test_log>]"
+  echo "Usage: $0 --iterations <n> [--rps <requests_per_second>] [--continue-from <reset_then_test_log>]"
   echo ""
   echo "  --iterations <n>          Total number of successful runs required"
+  echo "  --rps <n>                 Run k6 in open-loop RPS mode at <n> req/s (default: VU mode)"
   echo "  --continue-from <log>     Resume from a previous reset_then_test log."
   echo "                            Only iterations with actual result dirs count."
   echo "                            New runs append to the same log file."
@@ -13,12 +14,16 @@ usage() {
 
 ITERATIONS=""
 CONTINUE_FROM_LOG=""
+RPS_VALUE=""
 
 while [[ $# -gt 0 ]]; do
   case $1 in
     --iterations)
       [ -z "${2:-}" ] && { echo "Error: --iterations requires a number"; exit 1; }
       ITERATIONS="$2"; shift 2 ;;
+    --rps)
+      [ -z "${2:-}" ] || ! [[ "${2:-}" =~ ^[0-9]+$ ]] && { echo "Error: --rps requires a positive integer (e.g. --rps 45)"; exit 1; }
+      RPS_VALUE="$2"; shift 2 ;;
     --continue-from)
       [ -z "${2:-}" ] && { echo "Error: --continue-from requires a log file path"; exit 1; }
       CONTINUE_FROM_LOG="$2"; shift 2 ;;
@@ -39,6 +44,7 @@ echo "=========================================="
 echo "Run Aggregated Experiment"
 echo "Timestamp: $(date)"
 echo "Requested iterations: $ITERATIONS"
+[ -n "$RPS_VALUE" ] && echo "Load mode: RPS ($RPS_VALUE req/s)" || echo "Load mode: VU (default)"
 [ -n "$CONTINUE_FROM_LOG" ] && echo "Continue from: $CONTINUE_FROM_LOG"
 echo "=========================================="
 
@@ -113,11 +119,14 @@ if [ -n "$CONTINUE_FROM_LOG" ]; then
   continue_arg="--continue-from $CONTINUE_FROM_LOG"
 fi
 
+rps_arg=""
+[ -n "$RPS_VALUE" ] && rps_arg="--rps $RPS_VALUE"
+
 # ── 4. Launch reset_then_test.sh ──────────────────────────────────────────────
 echo ""
-echo "[LAUNCH] Starting reset_then_test.sh --loop $loop_count --average $continue_arg"
+echo "[LAUNCH] Starting reset_then_test.sh --loop $loop_count --average $continue_arg $rps_arg"
 # shellcheck disable=SC2086
-nohup "$PROJECT_ROOT/scripts/experiment/reset_then_test.sh" --loop "$loop_count" --average $continue_arg \
+nohup "$PROJECT_ROOT/scripts/experiment/reset_then_test.sh" --loop "$loop_count" --average $continue_arg $rps_arg \
   > /tmp/reset_then_test_launcher.log 2>&1 &
 NEW_PID=$!
 echo "[LAUNCH] PID: $NEW_PID"

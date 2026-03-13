@@ -6,36 +6,55 @@ import { randomIntBetween, randomString } from 'https://jslib.k6.io/k6-utils/1.4
 //
 // VU mode (K6_LOAD_MODE='vu', default):
 //   - K6_TARGET: number of virtual users (default 40)
-//   - Uses staged ramp-up: 60% -> 90% -> 100% -> cooldown
+//   - Open-ended throughput — actual RPS depends on response time (closed loop).
+//   - Stages: 60% VUs (30s warmup) → 90% VUs (30s ramp) → 100% VUs (sustained) → cooldown
 //
 // RPS mode (K6_LOAD_MODE='rps'):
-//   - K6_RPS: requests per second (default 30)
-//   - K6_RPS_PRE_ALLOC_VUS: pre-allocated VUs (default 100)
-//   - K6_RPS_MAX_VUS: max allowed VUs (default 300)
-//   - Constant arrival rate with no ramp-up
+//   - K6_RPS: target requests per second (default 45)
+//   - K6_RPS_PRE_ALLOC_VUS: pre-allocated VUs for executor (default 200)
+//   - K6_RPS_MAX_VUS: max VUs the executor may spin up (default 400)
+//   - Open-loop (constant arrival rate): k6 sends at the fixed rate regardless of
+//     response time. Slow responses accumulate as latency/errors, not reduced throughput.
+//   - Stages (ramping-arrival-rate):
+//       30s  ramp 0 → 60% of K6_RPS  (warmup)
+//       30s  ramp    → 100% of K6_RPS (full load)
+//       EXPERIMENT_DURATION  hold at K6_RPS   (sustained)
+//       30s  ramp    → 0              (cooldown)
 //
+// Why RPS mode for HPA comparison experiments:
+//   In VU mode the request rate is a function of response latency (throughput = VUs /
+//   response_time). When one HPA configuration is slower during ramp-up, it receives
+//   fewer requests per second, which in turn reduces CPU pressure on upstream services
+//   and delays their scaling — a feedback loop that confounds the comparison.
+//   RPS mode decouples input load from response time, so both HPA configurations face
+//   an identical workload and the comparison is fair.
 
 const LOAD_MODE = __ENV.K6_LOAD_MODE || 'vu';
-const STAGE_DURATION = __ENV.K6_DURATION || '10m';
+const STAGE_DURATION = __ENV.EXPERIMENT_DURATION || '10m';  // NOTE: must NOT be K6_DURATION — that's a k6 native env var that overrides options.scenarios
 const REQUEST_TIMEOUT = __ENV.K6_TIMEOUT || '5s';
 
 let options;
 
 if (LOAD_MODE === 'rps') {
-    // RPS mode: constant-arrival-rate executor
-    const RPS_TARGET = Number(__ENV.K6_RPS || 30);
-    const PRE_ALLOC_VUS = Number(__ENV.K6_RPS_PRE_ALLOC_VUS || 100);
-    const MAX_VUS = Number(__ENV.K6_RPS_MAX_VUS || 300);
+    const RPS_TARGET = Number(__ENV.K6_RPS || 45);
+    const PRE_ALLOC_VUS = Number(__ENV.K6_RPS_PRE_ALLOC_VUS || 200);
+    const MAX_VUS = Number(__ENV.K6_RPS_MAX_VUS || 400);
+    const rps60 = Math.round(RPS_TARGET * 0.6);
 
     options = {
         scenarios: {
-            constant_rps: {
-                executor: 'constant-arrival-rate',
-                rate: RPS_TARGET,
+            ramping_rps: {
+                executor: 'ramping-arrival-rate',
+                startRate: 0,
                 timeUnit: '1s',
-                duration: STAGE_DURATION,
                 preAllocatedVUs: PRE_ALLOC_VUS,
                 maxVUs: MAX_VUS,
+                stages: [
+                    { duration: '30s', target: rps60 },       // warmup ramp
+                    { duration: '30s', target: RPS_TARGET },   // ramp to full load
+                    { duration: STAGE_DURATION, target: RPS_TARGET }, // sustained
+                    { duration: '30s', target: 0 },            // cooldown
+                ],
             },
         },
     };

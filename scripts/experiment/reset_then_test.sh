@@ -6,6 +6,7 @@ WAIT_MINUTES=0
 DO_AVERAGE=false
 CPU_MULT=""
 CONTINUE_FROM_LOG=""
+RPS_VALUE=""   # empty = VU mode (backwards compatible); set to a number to use RPS mode
 
 while [[ $# -gt 0 ]]; do
   case $1 in
@@ -45,9 +46,17 @@ while [[ $# -gt 0 ]]; do
       CONTINUE_FROM_LOG="$2"
       shift 2
       ;;
+    --rps)
+      if [ -z "$2" ] || ! [[ "$2" =~ ^[0-9]+$ ]]; then
+        echo "Error: --rps requires a positive integer (e.g. --rps 45)"
+        exit 1
+      fi
+      RPS_VALUE="$2"
+      shift 2
+      ;;
     *)
       echo "Unknown option: $1"
-      echo "Usage: $0 [--loop <number>] [--wait <minutes>] [--average] [--cpu-mult <multiplier>] [--continue-from <logfile>]"
+      echo "Usage: $0 [--loop <number>] [--wait <minutes>] [--average] [--cpu-mult <multiplier>] [--continue-from <logfile>] [--rps <requests_per_second>]"
       exit 1
       ;;
   esac
@@ -199,15 +208,32 @@ for i in $(seq "$START_ITERATION" "$LOOP_COUNT"); do
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] [STEP] Running hpa_comparison_test.sh ..."
     TMP_CAPTURE=$(mktemp)
     trap "rm -f $TMP_CAPTURE" EXIT
-    SERVICE_CPU_MULT="${CPU_MULT:-}" \
-    K6_DURATION=7m \
-    K6_TARGET=35 \
-    K6_TIMEOUT=5s \
-    "$PROJECT_ROOT/scripts/experiment/hpa_comparison_test.sh" \
-      --hard-reset-testbed \
-      deathstar-bench/hpa/default_hpa.yaml \
-      deathstar-bench/hpa/context_aware_hpa_dual_metric.yaml \
-      dual_test_35_vus > "$TMP_CAPTURE" 2>&1
+    if [ -n "$RPS_VALUE" ]; then
+      TEST_NAME="dual_test_${RPS_VALUE}rps"
+      SERVICE_CPU_MULT="${CPU_MULT:-}" \
+      K6_LOAD_MODE=rps \
+      K6_RPS="$RPS_VALUE" \
+      K6_DURATION=11m \
+      EXPERIMENT_DURATION=11m \
+      K6_TIMEOUT=5s \
+      "$PROJECT_ROOT/scripts/experiment/hpa_comparison_test.sh" \
+        --hard-reset-testbed \
+        deathstar-bench/hpa/default_hpa.yaml \
+        deathstar-bench/hpa/context_aware_hpa_dual_metric.yaml \
+        "$TEST_NAME" > "$TMP_CAPTURE" 2>&1
+    else
+      TEST_NAME="dual_test_35_vus"
+      SERVICE_CPU_MULT="${CPU_MULT:-}" \
+      K6_DURATION=11m \
+      EXPERIMENT_DURATION=11m \
+      K6_TARGET=35 \
+      K6_TIMEOUT=5s \
+      "$PROJECT_ROOT/scripts/experiment/hpa_comparison_test.sh" \
+        --hard-reset-testbed \
+        deathstar-bench/hpa/default_hpa.yaml \
+        deathstar-bench/hpa/context_aware_hpa_dual_metric.yaml \
+        "$TEST_NAME" > "$TMP_CAPTURE" 2>&1
+    fi
 
     hpa_log=$(grep 'Log file:.*hpa_comparison_' "$TMP_CAPTURE" | head -1 | sed 's/.*Log file: //' | tr -d '[:space:]')
     hpa1_dir=$(grep '^HPA_RUN_DIR_HPA1=' "$TMP_CAPTURE" | tail -1 | cut -d= -f2-)
@@ -306,8 +332,8 @@ if [ "$DO_AVERAGE" = true ]; then
     --hpa1-dirs "${HPA1_RUN_DIRS[@]}" \
     --hpa2-dirs "${HPA2_RUN_DIRS[@]}" \
     --out-dir "$AGG_DIR" \
-    --label-a "Context-Aware HPA" \
-    --label-b "Default HPA"
+    --label-a "Default HPA" \
+    --label-b "Context-Aware HPA"
 
   echo ""
   echo "=========================================="

@@ -185,17 +185,25 @@ wait_for_hpa_to_stabilize() {
 
 # Function to get NGINX service endpoint
 get_nginx_endpoint() {
-    local NODE_PORT=$(kubectl get svc nginx-thrift -n socialnetwork -o jsonpath='{.spec.ports[0].nodePort}')
-    local NODE_IP=$(kubectl get nodes -o jsonpath='{.items[0].status.addresses[?(@.type=="InternalIP")].address}')
-    
-    if [ -z "$NODE_PORT" ] || [ -z "$NODE_IP" ]; then
-        print_error "Could not determine NGINX endpoint"
-        print_error "NODE_PORT: $NODE_PORT"
-        print_error "NODE_IP: $NODE_IP"
-        exit 1
+    local SVC_TYPE=$(kubectl get svc nginx-thrift -n socialnetwork -o jsonpath='{.spec.type}')
+    if [ "$SVC_TYPE" = "NodePort" ]; then
+        local NODE_PORT=$(kubectl get svc nginx-thrift -n socialnetwork -o jsonpath='{.spec.ports[0].nodePort}')
+        local NODE_IP=$(kubectl get nodes -o jsonpath='{.items[0].status.addresses[?(@.type=="InternalIP")].address}')
+        if [ -z "$NODE_PORT" ] || [ -z "$NODE_IP" ]; then
+            print_error "Could not determine NGINX NodePort endpoint"
+            exit 1
+        fi
+        echo "$NODE_IP:$NODE_PORT"
+    else
+        # ClusterIP or LoadBalancer: use cluster IP + service port
+        local CLUSTER_IP=$(kubectl get svc nginx-thrift -n socialnetwork -o jsonpath='{.spec.clusterIP}')
+        local PORT=$(kubectl get svc nginx-thrift -n socialnetwork -o jsonpath='{.spec.ports[0].port}')
+        if [ -z "$CLUSTER_IP" ] || [ -z "$PORT" ]; then
+            print_error "Could not determine NGINX ClusterIP endpoint"
+            exit 1
+        fi
+        echo "$CLUSTER_IP:$PORT"
     fi
-    
-    echo "$NODE_IP:$NODE_PORT"
 }
 
 # Function to print k6 stage information
@@ -314,7 +322,9 @@ kubectl get pods -n socialnetwork | grep -E "(nginx-thrift|compose-post|text-ser
 
 # Step 8: Set k6 environment variables
 export NGINX_HOST="$NGINX_ENDPOINT"
-export K6_DURATION="${K6_DURATION:-120s}"
+export K6_LOAD_MODE="${K6_LOAD_MODE:-vu}"
+export K6_RPS="${K6_RPS:-45}"
+export EXPERIMENT_DURATION="${K6_DURATION:-120s}"  # renamed: K6_DURATION is a k6 native env var that would override options.scenarios
 export K6_TARGET="${K6_TARGET:-50}"
 export K6_TIMEOUT="${K6_TIMEOUT:-5s}"
 

@@ -239,9 +239,23 @@ mkdir -p "$OUTPUT_DIR"
 
 # Function to get nginx service endpoint
 get_nginx_endpoint() {
-    local NODE_PORT=$(kubectl get svc nginx-thrift -n socialnetwork -o jsonpath='{.spec.ports[0].nodePort}')
-    local NODE_IP=$(kubectl get nodes -o jsonpath='{.items[0].status.addresses[?(@.type=="InternalIP")].address}')
-    echo "$NODE_IP:$NODE_PORT"
+    local SVC_TYPE=$(kubectl get svc nginx-thrift -n socialnetwork -o jsonpath='{.spec.type}')
+    if [ "$SVC_TYPE" != "NodePort" ]; then
+        print_warning "nginx-thrift service is $SVC_TYPE (not NodePort) — patching to NodePort now..."
+        kubectl patch svc nginx-thrift -n socialnetwork -p '{"spec": {"type": "NodePort"}}' || true
+        SVC_TYPE=$(kubectl get svc nginx-thrift -n socialnetwork -o jsonpath='{.spec.type}')
+    fi
+    if [ "$SVC_TYPE" = "NodePort" ]; then
+        local NODE_PORT=$(kubectl get svc nginx-thrift -n socialnetwork -o jsonpath='{.spec.ports[0].nodePort}')
+        local NODE_IP=$(kubectl get nodes -o jsonpath='{.items[0].status.addresses[?(@.type=="InternalIP")].address}')
+        echo "$NODE_IP:$NODE_PORT"
+    else
+        # Fallback: ClusterIP (may not work with Kind clusters)
+        local CLUSTER_IP=$(kubectl get svc nginx-thrift -n socialnetwork -o jsonpath='{.spec.clusterIP}')
+        local PORT=$(kubectl get svc nginx-thrift -n socialnetwork -o jsonpath='{.spec.ports[0].port}')
+        print_warning "Using ClusterIP fallback $CLUSTER_IP:$PORT — k6 requests may fail in Kind cluster!"
+        echo "$CLUSTER_IP:$PORT"
+    fi
 }
 
 # Function to wait for deployments to stabilize
@@ -416,7 +430,9 @@ Run Directory:    $run_dir
 $0 $HPA1_FILE $HPA2_FILE $TEST_NAME
 
 === k6 Parameters ===
-K6_DURATION:      ${K6_DURATION:-120s}
+K6_LOAD_MODE:     ${K6_LOAD_MODE:-vu}
+K6_RPS (rps mode):${K6_RPS:-45}
+EXPERIMENT_DURATION:${EXPERIMENT_DURATION:-${K6_DURATION:-120s}}
 K6_TARGET (VUs):  ${K6_TARGET:-50}
 K6_TIMEOUT:       ${K6_TIMEOUT:-5s}
 K6 CSV Output:    $k6_csv
@@ -462,7 +478,9 @@ run_k6_test() {
     # Get nginx endpoint
     local nginx_endpoint=$(get_nginx_endpoint)
     export NGINX_HOST="$nginx_endpoint"
-    export K6_DURATION="${K6_DURATION:-120s}"
+    export K6_LOAD_MODE="${K6_LOAD_MODE:-vu}"
+    export K6_RPS="${K6_RPS:-45}"
+    export EXPERIMENT_DURATION="${K6_DURATION:-120s}"  # renamed from K6_DURATION: k6 native env var would override options.scenarios
     export K6_TARGET="${K6_TARGET:-50}"
     export K6_TIMEOUT="${K6_TIMEOUT:-5s}"
     
@@ -481,7 +499,11 @@ run_k6_test() {
     
     print_status "k6 warnings and errors will be logged to: $k6_log_file"
     print_status "k6 request timeout for this run: ${K6_TIMEOUT}"
-    
+    # Unset K6_DURATION before running k6 — it is a k6 native env var (equivalent to --duration)
+    # that would override options.scenarios and silently switch back to VU mode.
+    # EXPERIMENT_DURATION carries the same value safely.
+    unset K6_DURATION
+
     if run_with_logging "$k6_cmd" "k6 load test: $test_desc"; then
         print_success "k6 test completed successfully: $test_desc"
         print_status "k6 errors/warnings saved to: $k6_log_file"
@@ -594,6 +616,61 @@ reset_hpa_recommendations() {
     done
     
     sleep 5
+}
+
+
+# Function to verify HPA is applied correctly and external metrics are resolving.
+# Prints a full status snapshot and loudly warns if any metric shows <unknown>.
+verify_hpa_metrics() {
+    local hpa_label="${1:-}"
+    local hpa_file="${2:-}"
+
+    echo ""
+    echo "========================================================================"
+    echo "  HPA METRICS VERIFICATION${hpa_label:+ — $hpa_label}"
+    echo "========================================================================"
+
+    if [ -n "$hpa_file" ]; then
+        print_status "HPA file applied: $hpa_file"
+        echo "--- HPA YAML (applied) ---"
+        cat "$hpa_file"
+        echo ""
+        echo "--------------------------"
+    fi
+
+    echo "--- kubectl get hpa -n socialnetwork ---"
+    local hpa_status
+    hpa_status=$(kubectl get hpa -n socialnetwork 2>&1)
+    echo "$hpa_status"
+    echo ""
+
+    # Check every HPA for <unknown> metric values
+    local has_unknown=false
+    while IFS= read -r line; do
+        if echo "$line" | grep -q '<unknown>'; then
+            has_unknown=true
+            print_warning "METRIC UNRESOLVED: $line"
+        fi
+    done <<< "$hpa_status"
+
+    if [ "$has_unknown" = true ]; then
+        echo ""
+        echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+        echo "  WARNING: One or more HPA external metrics are <unknown>."
+        echo "  Context-aware scaling signals will NOT work for this test."
+        echo "  Check that prometheus-adapter is running and metrics are configured."
+        echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+        echo ""
+        print_status "--- prometheus-adapter pod status ---"
+        kubectl get pods -n monitoring -l app.kubernetes.io/name=prometheus-adapter 2>/dev/null || true
+        print_status "--- kubectl describe hpa -n socialnetwork ---"
+        kubectl describe hpa -n socialnetwork 2>/dev/null | grep -A 5 -E "(Name:|Metrics:|Events:)" || true
+    else
+        print_success "All HPA metrics are resolving (no <unknown> values detected)"
+    fi
+
+    echo "========================================================================"
+    echo ""
 }
 
 # Function to wait for HPA to reach baseline after applying new configuration
@@ -1021,11 +1098,15 @@ main() {
                 -f prom/prometheus-adapter-values-parent-child.yaml
         fi
         print_success "Prometheus Adapter configuration applied"
+        print_status "Waiting for Prometheus Adapter rollout to complete..."
+        kubectl rollout status deployment/prometheus-adapter -n monitoring --timeout=120s \
+            && print_success "Prometheus Adapter is ready" \
+            || print_warning "Prometheus Adapter rollout timed out -- custom metrics may be unavailable"
     else
         print_warning "Prometheus Adapter values file not found: prom/prometheus-adapter-values-parent-child.yaml"
         print_warning "Continuing without updating adapter configuration..."
     fi
-    
+
     # Step 2: Apply service values (CPU requests) using server-side apply
     print_status "Step 2: Ensuring CPU requests are set for all services..."
     if apply_service_values_with_multiplier; then
@@ -1042,8 +1123,7 @@ main() {
     print_status "=== Current replica status after first test setup==="
     kubectl get deploy -n socialnetwork | grep -E "(nginx-thrift|compose-post-service|text-service|user-mention-service)"
     wait_for_stabilization
-    print_status "=== HPA status before k6 test (HPA1) ==="
-    kubectl get hpa -n socialnetwork
+    verify_hpa_metrics "HPA1 — $HPA1_FILE" "$HPA1_FILE"
     # Use HPA1-specific timeout if set, otherwise use global K6_TIMEOUT, otherwise default to 5s
     if [ -n "${K6_TIMEOUT_HPA1:-}" ]; then
         export K6_TIMEOUT="$K6_TIMEOUT_HPA1"
@@ -1054,11 +1134,11 @@ main() {
     fi
     # Apply same logic for other variables
     if [ -n "${K6_DURATION_HPA1:-}" ]; then
-        export K6_DURATION="$K6_DURATION_HPA1"
+        export EXPERIMENT_DURATION="$K6_DURATION_HPA1"
     elif [ -n "${K6_DURATION:-}" ]; then
-        export K6_DURATION="$K6_DURATION"
+        export EXPERIMENT_DURATION="$K6_DURATION"
     else
-        export K6_DURATION="120s"
+        export EXPERIMENT_DURATION="120s"
     fi
     if [ -n "${K6_TARGET_HPA1:-}" ]; then
         export K6_TARGET="$K6_TARGET_HPA1"
@@ -1067,7 +1147,7 @@ main() {
     else
         export K6_TARGET="50"
     fi
-    print_status "HPA1 Configuration: K6_TIMEOUT=$K6_TIMEOUT, K6_DURATION=$K6_DURATION, K6_TARGET=$K6_TARGET"
+    print_status "HPA1 Configuration: K6_TIMEOUT=$K6_TIMEOUT, EXPERIMENT_DURATION=$EXPERIMENT_DURATION, K6_TARGET=$K6_TARGET"
     run_k6_test "$HPA1_OUTPUT" "HPA Configuration 1" "hpa1"
     sleep 60s
     # Step 4: Reset deployments for clean state
@@ -1084,7 +1164,29 @@ main() {
     print_status "=== Current replica status after reset ==="
     kubectl get deploy -n socialnetwork | grep -E "(nginx-thrift|compose-post-service|text-service|user-mention-service)"
     
-    # Step 5: Test with second HPA configuration
+    # Step 5: Re-apply Prometheus Adapter config (hard reset wiped it) then test HPA2
+    print_status "=== Re-applying Prometheus Adapter configuration before HPA2 test ==="
+    if [ -f "prom/prometheus-adapter-values-parent-child.yaml" ]; then
+        local prom_ip=$(kubectl get svc kube-prometheus-stack-prometheus -n monitoring -o jsonpath='{.spec.clusterIP}' 2>/dev/null)
+        if [ -n "$prom_ip" ]; then
+            helm upgrade --install prometheus-adapter prometheus-community/prometheus-adapter \
+                -n monitoring --create-namespace \
+                --set prometheus.url=http://$prom_ip \
+                --set prometheus.port=9090 \
+                -f prom/prometheus-adapter-values-parent-child.yaml
+        else
+            helm upgrade --install prometheus-adapter prometheus-community/prometheus-adapter \
+                -n monitoring --create-namespace \
+                -f prom/prometheus-adapter-values-parent-child.yaml
+        fi
+        print_status "Waiting for Prometheus Adapter rollout to complete..."
+        kubectl rollout status deployment/prometheus-adapter -n monitoring --timeout=120s \
+            && print_success "Prometheus Adapter is ready" \
+            || print_warning "Prometheus Adapter rollout timed out -- custom metrics may be unavailable"
+    else
+        print_warning "Prometheus Adapter values file not found, skipping re-apply"
+    fi
+
     print_status "=== Testing HPA Configuration 2 ==="
     apply_hpa "$HPA2_FILE" "HPA Configuration 2"
     wait_for_hpa_to_stabilize
@@ -1093,8 +1195,7 @@ main() {
     wait_for_stabilization
     print_status "=== Current replica status after second test setup ==="
     kubectl get deploy -n socialnetwork | grep -E "(nginx-thrift|compose-post-service|text-service|user-mention-service)"
-    print_status "=== HPA status before k6 test (HPA2) ==="
-    kubectl get hpa -n socialnetwork
+    verify_hpa_metrics "HPA2 — $HPA2_FILE" "$HPA2_FILE"
     # Use HPA2-specific timeout if set, otherwise use global K6_TIMEOUT, otherwise default to 5s
     if [ -n "${K6_TIMEOUT_HPA2:-}" ]; then
         export K6_TIMEOUT="$K6_TIMEOUT_HPA2"
@@ -1105,11 +1206,11 @@ main() {
     fi
     # Apply same logic for other variables
     if [ -n "${K6_DURATION_HPA2:-}" ]; then
-        export K6_DURATION="$K6_DURATION_HPA2"
+        export EXPERIMENT_DURATION="$K6_DURATION_HPA2"
     elif [ -n "${K6_DURATION:-}" ]; then
-        export K6_DURATION="$K6_DURATION"
+        export EXPERIMENT_DURATION="$K6_DURATION"
     else
-        export K6_DURATION="120s"
+        export EXPERIMENT_DURATION="120s"
     fi
     if [ -n "${K6_TARGET_HPA2:-}" ]; then
         export K6_TARGET="$K6_TARGET_HPA2"
@@ -1118,7 +1219,7 @@ main() {
     else
         export K6_TARGET="50"
     fi
-    print_status "HPA2 Configuration: K6_TIMEOUT=$K6_TIMEOUT, K6_DURATION=$K6_DURATION, K6_TARGET=$K6_TARGET"
+    print_status "HPA2 Configuration: K6_TIMEOUT=$K6_TIMEOUT, EXPERIMENT_DURATION=$EXPERIMENT_DURATION, K6_TARGET=$K6_TARGET"
     run_k6_test "$HPA2_OUTPUT" "HPA Configuration 2" "hpa2"
     
     # Step 6: Run comparison
