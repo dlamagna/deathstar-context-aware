@@ -1,7 +1,7 @@
 🚀 K6 Report Comparison
-  [context_aware_hpa_dual_metric] reports/grid_search_vu35_cpu1_hpa1_20260309_114015.csv
-  [default_hpa] reports/grid_search_vu35_cpu1_hpa2_20260309_114015.csv
-Output: ../k6/grafana/2026-03-09/grid_search_vu35_cpu1_comparison_122052Z/
+  [context_aware_hpa_dual_metric] k6/reports/grid_search_vu35_cpu1_hpa1_20260309_114015.csv
+  [default_hpa] k6/reports/grid_search_vu35_cpu1_hpa2_20260309_114015.csv
+Output: data/grid_search_vu35_cpu1_comparison_122052Z/
 Using all data (no sampling)
 📁 Loading reports...
 ✅ Base report loaded: 291090 rows
@@ -43,71 +43,6 @@ Total Data Received (bytes)    4444910         4059630         -385280         -
 📈 Generating simplified comparison plots...
 
 🎉 Fast comparison complete!
-📊 Comparison plots saved to '../k6/grafana/2026-03-09/grid_search_vu35_cpu1_comparison_122052Z/':
+📊 Comparison plots saved to 'data/grid_search_vu35_cpu1_comparison_122052Z/':
 - comparison_latency_distribution.png
 - comparison_metrics_summary.png
-🚀 K6 Report Comparison
-  [context_aware_hpa_dual_metric] reports/grid_search_vu35_cpu1_hpa1_20260309_114015.csv
-  [default_hpa] reports/grid_search_vu35_cpu1_hpa2_20260309_114015.csv
-Output: ../k6/grafana/2026-03-09/grid_search_vu35_cpu1_comparison_122052Z/
-Using all data (no sampling)
-📁 Loading reports...
-✅ Base report loaded: 291090 rows
-✅ Comparison report loaded: 266098 rows
-⚡ Extracting metrics...
-📊 Calculating high-level metrics...
-
-================================================================================
-COMPARISON: context_aware_hpa_dual_metric vs default_hpa
-================================================================================
-
-📊 LATENCY COMPARISON:
-Metric               Base            Comparison      Difference      % Change       
---------------------------------------------------------------------------------
-Avg Latency          708.41          775.21          66.79           9.43           %
-Min Latency          5.95            6.08            0.13            2.12           %
-Max Latency          5001.41         5001.31         -0.11           -0.00          %
-P50 Latency          289.77          200.35          -89.42          -30.86         %
-P95 Latency          2696.10         2898.38         202.28          7.50           %
-P99 Latency          3799.22         4002.83         203.61          5.36           %
-
-✅ SUCCESS RATE COMPARISON:
-Metric                    Base            Comparison      Difference      % Change       
--------------------------------------------------------------------------------------
-Success Rate (%)          99.72           99.66           -0.06           -0.06          %
-Failure Rate (%)          0.28            0.34            0.06            22.63          %
-
-🚀 THROUGHPUT COMPARISON:
-Metric                    Base            Comparison      Difference      % Change       
--------------------------------------------------------------------------------------
-Requests/Second           49.36           45.22           -4.14           -8.39          %
-
-📡 DATA TRANSFER COMPARISON:
-Metric                         Base            Comparison      Difference      % Change       
-------------------------------------------------------------------------------------------
-Total Data Sent (bytes)        12183739        11134561        -1049178        -8.61          %
-Total Data Received (bytes)    4444910         4059630         -385280         -8.67          %
-
-📈 Generating simplified comparison plots...
-
-🎉 Fast comparison complete!
-📊 Comparison plots saved to '../k6/grafana/2026-03-09/grid_search_vu35_cpu1_comparison_122052Z/':
-- comparison_latency_distribution.png
-- comparison_metrics_summary.png
-
-========================================
-  Overlay Plots
-========================================
-[INFO] Generated 7 overlay plots in k6/grafana/2026-03-09/grid_search_vu35_cpu1_comparison_122052Z/
-  overlay_latency.png
-  overlay_throughput.png
-  overlay_failure_rate.png
-  overlay_replicas.png
-  overlay_cpu_utilization.png
-  overlay_cpu_mcore.png
-  overlay_memory.png
-
-========================================
-  Latency Breakdown Comparison
-========================================
-python3: can't open file '/home/dlamagna/projects/autoscaling-kubernetes/python/compare_latency_breakdown.py': [Errno 2] No such file or directory
