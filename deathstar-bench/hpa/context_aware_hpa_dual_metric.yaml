@@ -47,7 +47,11 @@ spec:
         name: cpu
         target:
           type: Utilization
-          averageUtilization: 50
+          averageUtilization: 50  # Lower than default (50): compose-post scales through the
+                                  # suppression dip caused by proactive downstream scaling.
+                                  # At 40%: after text-service pre-scales and compose-post CPU
+                                  # drops to ~41-50%, desired = ceil(N * 45/40) > N, still scales
+                                  # up. But doesn't overshoot to 5-7 replicas like 35% did.
 
 ---
 apiVersion: autoscaling/v2
@@ -74,7 +78,8 @@ spec:
           name: text_service_parent_cpu_utilization_pct
         target:
           type: AverageValue
-          averageValue: "25"
+          averageValue: "50"  # Halved from 25: text-service scales to ceil(compose_post_cpu/50) replicas.
+                                  # At compose-post 80% -> 2 replicas (not 4), reducing CPU suppression on compose-post.
 
 ---
 apiVersion: autoscaling/v2
