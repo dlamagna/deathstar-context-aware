@@ -17,10 +17,14 @@ Each dir is expected to contain a unified_report.csv. The script:
 """
 
 import argparse
+import json
 import os
+import re
 import sys
+from datetime import datetime
 
 import glob
+import yaml
 
 import matplotlib
 matplotlib.use("Agg")
@@ -49,12 +53,15 @@ class _Tee:
 
 
 def load_unified_csvs(dirs, max_fail_pct=95.0):
-    """Load unified_report.csv from each directory, return list of DataFrames.
+    """Load unified_report.csv from each directory.
 
+    Returns (frames, loaded_dirs) — both lists are parallel and only include
+    runs that passed the health check (mean failure rate < max_fail_pct).
     Skips any run whose mean k6_fail_pct >= max_fail_pct (default 95%), which
     indicates the run was entirely failed / the testbed was not healthy.
     """
     frames = []
+    loaded_dirs = []
     for d in dirs:
         csv_path = os.path.join(d, "unified_report.csv")
         if not os.path.isfile(csv_path):
@@ -67,8 +74,9 @@ def load_unified_csvs(dirs, max_fail_pct=95.0):
                 print(f"[SKIP] {csv_path}: mean failure rate {mean_fail:.1f}% >= {max_fail_pct}%, excluding from aggregation")
                 continue
         frames.append(df)
+        loaded_dirs.append(d)
         print(f"[INFO] Loaded {csv_path}: {len(df)} rows, {len(df.columns)} cols")
-    return frames
+    return frames, loaded_dirs
 
 
 def numeric_columns(df):
@@ -274,6 +282,84 @@ def plot_latency_distribution(latencies_a, latencies_b, out_dir, label_a, label_
     print(f"[INFO] Saved aggregated latency distribution to {out_path}")
 
 
+def plot_per_run_p95(frames, mean_df, out_dir, label):
+    """Line plot showing P95 latency per run over time, with mean overlaid.
+
+    Each individual run is a faint line; the aggregated mean is a bold line.
+    Saves per_run_p95.png to out_dir.
+    """
+    col = "k6_p95_ms"
+    if not frames or col not in frames[0].columns:
+        print(f"[WARN] {col} not found, skipping per-run P95 plot for {label}")
+        return
+
+    os.makedirs(out_dir, exist_ok=True)
+    fig, ax = plt.subplots(figsize=(14, 5))
+
+    min_rows = min(len(f) for f in frames)
+    x = np.arange(min_rows)
+
+    for i, df in enumerate(frames):
+        vals = pd.to_numeric(df[col], errors="coerce").iloc[:min_rows].values
+        ax.plot(x, vals, color="#4F83CC", alpha=0.25, linewidth=0.8,
+                label="_nolegend_" if i > 0 else f"Individual runs (n={len(frames)})")
+
+    if col in mean_df.columns:
+        mean_vals = mean_df[col].values[:min_rows]
+        ax.plot(x, mean_vals, color="#1A237E", linewidth=2.2, label="Mean across runs", zorder=5)
+
+    ax.set_xlabel("Bucket (10s intervals)")
+    ax.set_ylabel("P95 Latency (ms)")
+    ax.set_title(f"{label} — P95 Latency per Run over Time")
+    ax.legend(fontsize=9)
+    ax.grid(True, alpha=0.3)
+    plt.tight_layout()
+    out_path = os.path.join(out_dir, "per_run_p95.png")
+    plt.savefig(out_path, dpi=150, bbox_inches="tight")
+    plt.close()
+    print(f"[INFO] Saved per-run P95 plot to {out_path}")
+
+
+def plot_per_run_p95_comparison(hpa1_frames, hpa2_frames, mean1, mean2,
+                                 out_dir, label_a, label_b):
+    """Side-by-side per-run P95 comparison: both HPA groups in one figure."""
+    col = "k6_p95_ms"
+    if not hpa1_frames or not hpa2_frames:
+        return
+    if col not in hpa1_frames[0].columns or col not in hpa2_frames[0].columns:
+        print(f"[WARN] {col} not found, skipping per-run P95 comparison plot")
+        return
+
+    os.makedirs(out_dir, exist_ok=True)
+    fig, axes = plt.subplots(1, 2, figsize=(20, 6), sharey=True)
+
+    for ax, frames, mean_df, label, run_color, mean_color in [
+        (axes[0], hpa1_frames, mean1, label_a, "#4F83CC", "#1A237E"),
+        (axes[1], hpa2_frames, mean2, label_b, "#E57342", "#7B1A00"),
+    ]:
+        min_rows = min(len(f) for f in frames)
+        x = np.arange(min_rows)
+        for i, df in enumerate(frames):
+            vals = pd.to_numeric(df[col], errors="coerce").iloc[:min_rows].values
+            ax.plot(x, vals, color=run_color, alpha=0.2, linewidth=0.8,
+                    label="_nolegend_" if i > 0 else f"Individual runs (n={len(frames)})")
+        if col in mean_df.columns:
+            mean_vals = mean_df[col].values[:min_rows]
+            ax.plot(x, mean_vals, color=mean_color, linewidth=2.2, label="Mean", zorder=5)
+        ax.set_xlabel("Bucket (10s intervals)")
+        ax.set_ylabel("P95 Latency (ms)")
+        ax.set_title(f"{label} — P95 per Run")
+        ax.legend(fontsize=9)
+        ax.grid(True, alpha=0.3)
+
+    plt.suptitle(f"Per-Run P95 Latency: {label_a} vs {label_b}", fontsize=13, fontweight="bold")
+    plt.tight_layout(rect=[0, 0, 1, 0.95])
+    out_path = os.path.join(out_dir, "per_run_p95_comparison.png")
+    plt.savefig(out_path, dpi=150, bbox_inches="tight")
+    plt.close()
+    print(f"[INFO] Saved per-run P95 comparison plot to {out_path}")
+
+
 def print_summary_table(mean1, mean2, label_a, label_b):
     """Print a text summary table of key aggregated metrics."""
     metrics = [
@@ -298,6 +384,186 @@ def print_summary_table(mean1, mean2, label_a, label_b):
             pct = (diff / a * 100) if a != 0 else 0
             print(f"{name:<25} {a:<15.2f} {b:<15.2f} {diff:<12.2f} {pct:<10.2f}%")
     print(f"{'='*80}\n")
+
+
+def parse_run_config(run_dir):
+    """Extract k6 params, HPA thresholds, and service CPU requests from a run directory.
+
+    Reads config/run_details.txt (k6 params + inline HPA YAML) and
+    config/service_values.yaml (CPU requests per Deployment).
+    Returns a dict with keys: k6, hpa, services, and optional test_name/date/hpa_label.
+    """
+    config = {"run_dir": os.path.abspath(run_dir), "k6": {}, "hpa": {}, "services": {}}
+
+    details_path = os.path.join(run_dir, "config", "run_details.txt")
+    if os.path.isfile(details_path):
+        with open(details_path) as f:
+            content = f.read()
+
+        for line in content.splitlines():
+            if ":" not in line:
+                continue
+            key, _, val = line.strip().partition(":")
+            key = key.strip()
+            val = val.strip()
+            if key == "K6_LOAD_MODE":
+                config["k6"]["load_mode"] = val
+            elif key.startswith("K6_RPS"):
+                m = re.search(r"\d+", val)
+                if m:
+                    config["k6"]["rps"] = int(m.group())
+            elif key == "EXPERIMENT_DURATION":
+                config["k6"]["duration"] = val
+            elif key.startswith("K6_TARGET"):
+                m = re.search(r"\d+", val)
+                if m:
+                    config["k6"]["vus"] = int(m.group())
+            elif key == "K6_TIMEOUT":
+                config["k6"]["timeout"] = val
+            elif key == "Test Name":
+                config["test_name"] = val
+            elif key == "Date":
+                config["date"] = val
+            elif key == "HPA Label":
+                config["hpa_label"] = val
+            elif key == "HPA File":
+                config["hpa_file"] = val
+
+        # Extract inline HPA YAML block (between "HPA YAML (inline):" and next "===")
+        m = re.search(r"HPA YAML \(inline\):\n(.*?)(?=\n===|\Z)", content, re.DOTALL)
+        if m:
+            hpa_yaml_str = m.group(1).rstrip()
+            try:
+                for doc in yaml.safe_load_all(hpa_yaml_str):
+                    if not doc or doc.get("kind") != "HorizontalPodAutoscaler":
+                        continue
+                    svc_name = doc["metadata"]["name"]
+                    if svc_name.endswith("-hpa"):
+                        svc_name = svc_name[:-4]
+                    spec = doc.get("spec", {})
+                    entry = {
+                        "min_replicas": spec.get("minReplicas"),
+                        "max_replicas": spec.get("maxReplicas"),
+                    }
+                    for metric in spec.get("metrics", []):
+                        if metric["type"] == "Resource" and metric.get("resource", {}).get("name") == "cpu":
+                            entry["cpu_threshold"] = metric["resource"]["target"].get("averageUtilization")
+                        elif metric["type"] == "External":
+                            ext = metric.get("external", {})
+                            tgt = ext.get("target", {})
+                            entry["parent_metric"] = ext.get("metric", {}).get("name")
+                            entry["parent_target_type"] = tgt.get("type")
+                            entry["parent_target_value"] = tgt.get("averageValue") or tgt.get("value")
+                    config["hpa"][svc_name] = entry
+            except Exception as e:
+                config["hpa"]["_parse_error"] = str(e)
+
+    svc_yaml_path = os.path.join(run_dir, "config", "service_values.yaml")
+    if os.path.isfile(svc_yaml_path):
+        try:
+            with open(svc_yaml_path) as f:
+                svc_content = f.read()
+            for doc in yaml.safe_load_all(svc_content):
+                if not doc or doc.get("kind") != "Deployment":
+                    continue
+                name = doc["metadata"]["name"]
+                try:
+                    containers = doc["spec"]["template"]["spec"]["containers"]
+                    for c in containers:
+                        if c.get("name") == name:
+                            req = c.get("resources", {}).get("requests", {})
+                            config["services"][name] = {
+                                "cpu_request": req.get("cpu"),
+                                "memory_request": req.get("memory"),
+                            }
+                except (KeyError, TypeError):
+                    pass
+        except Exception:
+            pass
+
+    return config
+
+
+def compute_run_metrics(df):
+    """Compute high-level summary metrics from a unified_report DataFrame."""
+    col_map = {
+        "p50_ms": "k6_p50_ms",
+        "p90_ms": "k6_p90_ms",
+        "p95_ms": "k6_p95_ms",
+        "p99_ms": "k6_p99_ms",
+        "fail_pct": "k6_fail_pct",
+        "rps": "k6_rps",
+    }
+    return {
+        key: round(float(pd.to_numeric(df[col], errors="coerce").dropna().mean()), 3)
+        for key, col in col_map.items()
+        if col in df.columns
+    }
+
+
+def build_comparison_json(hpa1_dirs, hpa2_dirs, hpa1_frames, hpa2_frames,
+                          mean1, mean2, label_a, label_b, out_dir):
+    """Write comparison/runs_summary.json with per-run configs and high-level metrics.
+
+    Returns the summary dict (also useful for aggregate_across_runs.py).
+    """
+    agg_col_map = {
+        "p50_ms": "k6_p50_ms",
+        "p90_ms": "k6_p90_ms",
+        "p95_ms": "k6_p95_ms",
+        "p99_ms": "k6_p99_ms",
+        "fail_pct": "k6_fail_pct",
+        "rps": "k6_rps",
+    }
+
+    def _agg_metrics(mean_df):
+        return {
+            key: round(float(mean_df[col].mean()), 3)
+            for key, col in agg_col_map.items()
+            if col in mean_df.columns
+        }
+
+    def _build_group(dirs, frames, mean_df, label):
+        runs = []
+        for d, df in zip(dirs, frames):
+            run = parse_run_config(d)
+            run["metrics"] = compute_run_metrics(df)
+            runs.append(run)
+        return {
+            "label": label,
+            "n_runs": len(runs),
+            "runs": runs,
+            "aggregate": _agg_metrics(mean_df),
+        }
+
+    hpa1_data = _build_group(hpa1_dirs, hpa1_frames, mean1, label_a)
+    hpa2_data = _build_group(hpa2_dirs, hpa2_frames, mean2, label_b)
+
+    agg1, agg2 = hpa1_data["aggregate"], hpa2_data["aggregate"]
+    comparison = {}
+    for key in ["p50_ms", "p95_ms", "p99_ms", "fail_pct", "rps"]:
+        if key in agg1 and key in agg2:
+            diff = round(agg2[key] - agg1[key], 3)
+            diff_pct = round(diff / agg1[key] * 100, 2) if agg1[key] != 0 else 0.0
+            comparison[key] = {
+                "hpa1": agg1[key], "hpa2": agg2[key],
+                "diff": diff, "diff_pct": diff_pct,
+            }
+
+    summary = {
+        "created_at": datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "out_dir": os.path.abspath(out_dir),
+        "labels": {"hpa1": label_a, "hpa2": label_b},
+        "hpa1": hpa1_data,
+        "hpa2": hpa2_data,
+        "comparison": comparison,
+    }
+
+    out_path = os.path.join(out_dir, "comparison", "runs_summary.json")
+    with open(out_path, "w") as f:
+        json.dump(summary, f, indent=2)
+    print(f"[INFO] Saved runs summary JSON to {out_path}")
+    return summary
 
 
 def _discover_run_dirs(grafana_dir, last_n=None):
@@ -383,9 +649,9 @@ def main():
     sys.stdout = _tee
 
     print(f"[INFO] Loading HPA1 runs ({len(hpa1_dirs)} iterations)...")
-    hpa1_frames = load_unified_csvs(hpa1_dirs)
+    hpa1_frames, hpa1_loaded = load_unified_csvs(hpa1_dirs)
     print(f"[INFO] Loading HPA2 runs ({len(hpa2_dirs)} iterations)...")
-    hpa2_frames = load_unified_csvs(hpa2_dirs)
+    hpa2_frames, hpa2_loaded = load_unified_csvs(hpa2_dirs)
 
     if len(hpa1_frames) < 1 or len(hpa2_frames) < 1:
         print("[ERROR] Need at least 1 valid run for each HPA group")
@@ -405,6 +671,11 @@ def main():
 
     plot_comparison(mean1, std1, mean2, std2, comp_dir, args.label_a, args.label_b)
 
+    plot_per_run_p95(hpa1_frames, mean1, hpa1_dir, args.label_a)
+    plot_per_run_p95(hpa2_frames, mean2, hpa2_dir, args.label_b)
+    plot_per_run_p95_comparison(hpa1_frames, hpa2_frames, mean1, mean2,
+                                comp_dir, args.label_a, args.label_b)
+
     # Overlay plots (with stddev bands from the aggregation)
     from overlay_plots import generate_overlays
     generate_overlays(mean1, mean2, comp_dir, args.label_a, args.label_b, std1, std2)
@@ -416,6 +687,9 @@ def main():
     plot_latency_distribution(lat_a, lat_b, comp_dir, args.label_a, args.label_b)
 
     print_summary_table(mean1, mean2, args.label_a, args.label_b)
+
+    build_comparison_json(hpa1_loaded, hpa2_loaded, hpa1_frames, hpa2_frames,
+                          mean1, mean2, args.label_a, args.label_b, args.out_dir)
 
     print(f"[INFO] Aggregation complete. Results in {args.out_dir}/")
     print(f"  {hpa1_dir}/  - averaged CSV + plots for {args.label_a}")
