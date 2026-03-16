@@ -1,0 +1,161 @@
+=== Run Configuration ===
+Date:             2026-03-14 16:43:37 UTC
+Test Name:        dual_test_30rps
+Test Description: HPA Configuration 2
+HPA Label:        hpa2
+Run Directory:    k6/grafana/2026-03-14/dual_test_30rps_hpa2_162943Z
+
+=== Command ===
+/home/dlamagna/projects/autoscaling-kubernetes/scripts/experiment/hpa_comparison_test.sh deathstar-bench/hpa/default_hpa.yaml deathstar-bench/hpa/context_aware_hpa_dual_metric.yaml dual_test_30rps
+
+=== k6 Parameters ===
+K6_LOAD_MODE:     rps
+K6_RPS (rps mode):30
+EXPERIMENT_DURATION:11m
+K6_TARGET (VUs):  50
+K6_TIMEOUT:       5s
+K6 CSV Output:    k6/reports/dual_test_30rps_hpa2_20260314_155219.csv
+
+=== HPA Configuration ===
+HPA File:         deathstar-bench/hpa/context_aware_hpa_dual_metric.yaml
+HPA YAML (inline):
+# ===== DUAL-METRIC CONTEXT-AWARE HPA CONFIGURATION =====
+#
+# Each downstream service has TWO independent metrics:
+#   1. Its OWN CPU utilization (self-preservation, type: Utilization)
+#   2. Its PARENT service's CPU utilization (proactive scaling, type: AverageValue)
+#
+# The HPA takes the MAX desired replica count from both metrics.
+# This avoids the dilution bug in the combined/pooled metric approach.
+#
+# IMPORTANT: The parent metric MUST use AverageValue, NOT Value.
+# With Value, the formula is: desired = ceil(currentReplicas * metric / target)
+# Since scaling the child doesn't reduce the parent's CPU, this feeds back
+# on itself and runs away to maxReplicas.
+# With AverageValue, the formula is: desired = ceil(metric / target)
+# This gives a stable replica target proportional to the parent's load.
+#
+# Service chain: nginx-thrift -> compose-post -> text-service -> user-mention-service
+#
+# Parent metrics (defined in prometheus-adapter-values-parent-child.yaml):
+#   compose_post_parent_cpu_utilization_pct  = nginx-thrift per-pod CPU %
+#   text_service_parent_cpu_utilization_pct  = compose-post per-pod CPU %
+#   user_mention_parent_cpu_utilization_pct  = text-service total load / one-pod-capacity
+#     ^ Uses min() denominator (not sum()) so the signal is not diluted when
+#       text-service scales. averageValue=50 → user-mention tracks text-service 1:1
+#       at normal load (text-service at 50%), scales proportionally when overloaded.
+#
+# AverageValue tuning guide:
+#   averageValue "25" → child gets ceil(parent_cpu / 25) replicas from parent signal
+#     parent at 50% → 2 child replicas, parent at 100% → 4 child replicas
+#   averageValue "50" → more conservative
+#     parent at 50% → 1 child replica, parent at 100% → 2 child replicas
+
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: compose-post-service-hpa
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: compose-post-service
+  minReplicas: 1
+  maxReplicas: 10
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 50  # Lower than default (50): compose-post scales through the
+                                  # suppression dip caused by proactive downstream scaling.
+                                  # At 40%: after text-service pre-scales and compose-post CPU
+                                  # drops to ~41-50%, desired = ceil(N * 45/40) > N, still scales
+                                  # up. But doesn't overshoot to 5-7 replicas like 35% did.
+
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: text-service-hpa
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: text-service
+  minReplicas: 1
+  maxReplicas: 10
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 50
+    - type: External
+      external:
+        metric:
+          name: text_service_parent_cpu_utilization_pct
+        target:
+          type: AverageValue
+          averageValue: "50"  # Halved from 25: text-service scales to ceil(compose_post_cpu/50) replicas.
+                                  # At compose-post 80% -> 2 replicas (not 4), reducing CPU suppression on compose-post.
+
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: user-mention-service-hpa
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: user-mention-service
+  minReplicas: 1
+  maxReplicas: 10
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 50
+    - type: External
+      external:
+        metric:
+          name: user_mention_parent_cpu_utilization_pct
+        target:
+          type: AverageValue
+          averageValue: "50"   # min() denominator: 50 = text-service HPA threshold, so user-mention tracks text-service 1:1 at normal load
+
+=== Environment ===
+Reset Method:        Hard reset
+Service CPU Mult:    1.0
+Kubernetes Context:  kind-socialnetwork
+Cluster Nodes:
+NAME                          STATUS   ROLES           AGE   VERSION   INTERNAL-IP   EXTERNAL-IP   OS-IMAGE                         KERNEL-VERSION       CONTAINER-RUNTIME
+socialnetwork-control-plane   Ready    control-plane   29m   v1.27.3   172.18.0.3    <none>        Debian GNU/Linux 11 (bullseye)   5.15.0-171-generic   containerd://1.7.1
+socialnetwork-worker          Ready    <none>          29m   v1.27.3   172.18.0.2    <none>        Debian GNU/Linux 11 (bullseye)   5.15.0-171-generic   containerd://1.7.1
+socialnetwork-worker2         Ready    <none>          29m   v1.27.3   172.18.0.4    <none>        Debian GNU/Linux 11 (bullseye)   5.15.0-171-generic   containerd://1.7.1
+
+=== HPA Status at Test Start ===
+NAME                       REFERENCE                         TARGETS                    MINPODS   MAXPODS   REPLICAS   AGE
+compose-post-service-hpa   Deployment/compose-post-service   38%/50%                    1         10        3          18m
+text-service-hpa           Deployment/text-service           34%/50%, 14580m/50 (avg)   1         10        2          18m
+user-mention-service-hpa   Deployment/user-mention-service   20%/50%, 23639m/50 (avg)   1         10        2          18m
+
+=== Deployment Status at Test Start ===
+NAME                     READY   UP-TO-DATE   AVAILABLE   AGE
+compose-post-service     3/3     3            3           23m
+nginx-thrift             1/1     1            1           23m
+text-service             2/2     2            2           23m
+user-mention-service     2/2     2            2           23m
+
+=== Files in config/ ===
+hpa_config.yaml              - HPA YAML used for this run (deathstar-bench/hpa/context_aware_hpa_dual_metric.yaml)
+service_values.yaml          - Service CPU/memory resource definitions
+prometheus_adapter_values.yaml - Prometheus adapter external metrics config
+grafana_dashboard.json       - Grafana dashboard used for metric scraping
+k6_loader.js                 - k6 load test script
+run_details.txt              - This file

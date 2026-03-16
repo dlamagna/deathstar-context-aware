@@ -1,0 +1,109 @@
+# ===== DUAL-METRIC CONTEXT-AWARE HPA CONFIGURATION =====
+#
+# Each downstream service has TWO independent metrics:
+#   1. Its OWN CPU utilization (self-preservation, type: Utilization)
+#   2. Its PARENT service's CPU utilization (proactive scaling, type: AverageValue)
+#
+# The HPA takes the MAX desired replica count from both metrics.
+# This avoids the dilution bug in the combined/pooled metric approach.
+#
+# IMPORTANT: The parent metric MUST use AverageValue, NOT Value.
+# With Value, the formula is: desired = ceil(currentReplicas * metric / target)
+# Since scaling the child doesn't reduce the parent's CPU, this feeds back
+# on itself and runs away to maxReplicas.
+# With AverageValue, the formula is: desired = ceil(metric / target)
+# This gives a stable replica target proportional to the parent's load.
+#
+# Service chain: nginx-thrift -> compose-post -> text-service -> user-mention-service
+#
+# Parent metrics (defined in prometheus-adapter-values-parent-child.yaml):
+#   compose_post_parent_cpu_utilization_pct  = nginx-thrift per-pod CPU %
+#   text_service_parent_cpu_utilization_pct  = compose-post per-pod CPU %
+#   user_mention_parent_cpu_utilization_pct  = text-service total load / one-pod-capacity
+#     ^ Uses min() denominator (not sum()) so the signal is not diluted when
+#       text-service scales. averageValue=50 → user-mention tracks text-service 1:1
+#       at normal load (text-service at 50%), scales proportionally when overloaded.
+#
+# AverageValue tuning guide:
+#   averageValue "25" → child gets ceil(parent_cpu / 25) replicas from parent signal
+#     parent at 50% → 2 child replicas, parent at 100% → 4 child replicas
+#   averageValue "50" → more conservative
+#     parent at 50% → 1 child replica, parent at 100% → 2 child replicas
+
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: compose-post-service-hpa
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: compose-post-service
+  minReplicas: 1
+  maxReplicas: 10
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 50  # Lower than default (50): compose-post scales through the
+                                  # suppression dip caused by proactive downstream scaling.
+                                  # At 40%: after text-service pre-scales and compose-post CPU
+                                  # drops to ~41-50%, desired = ceil(N * 45/40) > N, still scales
+                                  # up. But doesn't overshoot to 5-7 replicas like 35% did.
+
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: text-service-hpa
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: text-service
+  minReplicas: 1
+  maxReplicas: 10
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 50
+    - type: External
+      external:
+        metric:
+          name: text_service_parent_cpu_utilization_pct
+        target:
+          type: AverageValue
+          averageValue: "50"  # Halved from 25: text-service scales to ceil(compose_post_cpu/50) replicas.
+                                  # At compose-post 80% -> 2 replicas (not 4), reducing CPU suppression on compose-post.
+
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: user-mention-service-hpa
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: user-mention-service
+  minReplicas: 1
+  maxReplicas: 10
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 50
+    - type: External
+      external:
+        metric:
+          name: user_mention_parent_cpu_utilization_pct
+        target:
+          type: AverageValue
+          averageValue: "50"   # min() denominator: 50 = text-service HPA threshold, so user-mention tracks text-service 1:1 at normal load
