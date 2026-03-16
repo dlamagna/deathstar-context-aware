@@ -329,7 +329,7 @@ wait_for_deployment_ready() {
 # Function to print k6 stage information
 print_k6_stages() {
     local target="${K6_TARGET:-50}"
-    local duration="${K6_DURATION:-120s}"
+    local duration="${EXPERIMENT_DURATION:-${K6_DURATION:-120s}}"
     local timeout="${K6_TIMEOUT:-5s}"
     
     print_status "=== k6 Load Test Configuration ==="
@@ -480,7 +480,7 @@ run_k6_test() {
     export NGINX_HOST="$nginx_endpoint"
     export K6_LOAD_MODE="${K6_LOAD_MODE:-vu}"
     export K6_RPS="${K6_RPS:-45}"
-    export EXPERIMENT_DURATION="${K6_DURATION:-120s}"  # renamed from K6_DURATION: k6 native env var would override options.scenarios
+    export EXPERIMENT_DURATION="${EXPERIMENT_DURATION:-${K6_DURATION:-120s}}"
     export K6_TARGET="${K6_TARGET:-50}"
     export K6_TIMEOUT="${K6_TIMEOUT:-5s}"
     
@@ -495,14 +495,10 @@ run_k6_test() {
     # Determine start/end window (±60s)
     local K6_START_EPOCH=$(date +%s)
     # Run k6 with silent mode and redirect stderr to log file only
-    local k6_cmd="k6 run -q k6/k6_loader.js --out csv=\"$output_file\" 2> \"$k6_log_file\""
+    local k6_cmd="env -u K6_DURATION k6 run -q k6/k6_loader.js --out csv=\"$output_file\" 2> \"$k6_log_file\""
     
     print_status "k6 warnings and errors will be logged to: $k6_log_file"
     print_status "k6 request timeout for this run: ${K6_TIMEOUT}"
-    # Unset K6_DURATION before running k6 — it is a k6 native env var (equivalent to --duration)
-    # that would override options.scenarios and silently switch back to VU mode.
-    # EXPERIMENT_DURATION carries the same value safely.
-    unset K6_DURATION
 
     if run_with_logging "$k6_cmd" "k6 load test: $test_desc"; then
         print_success "k6 test completed successfully: $test_desc"
@@ -1135,8 +1131,8 @@ main() {
     # Apply same logic for other variables
     if [ -n "${K6_DURATION_HPA1:-}" ]; then
         export EXPERIMENT_DURATION="$K6_DURATION_HPA1"
-    elif [ -n "${K6_DURATION:-}" ]; then
-        export EXPERIMENT_DURATION="$K6_DURATION"
+    elif [ -n "${EXPERIMENT_DURATION:-}" ]; then
+        : # keep existing EXPERIMENT_DURATION
     else
         export EXPERIMENT_DURATION="120s"
     fi
@@ -1207,8 +1203,8 @@ main() {
     # Apply same logic for other variables
     if [ -n "${K6_DURATION_HPA2:-}" ]; then
         export EXPERIMENT_DURATION="$K6_DURATION_HPA2"
-    elif [ -n "${K6_DURATION:-}" ]; then
-        export EXPERIMENT_DURATION="$K6_DURATION"
+    elif [ -n "${EXPERIMENT_DURATION:-}" ]; then
+        : # keep existing EXPERIMENT_DURATION
     else
         export EXPERIMENT_DURATION="120s"
     fi
