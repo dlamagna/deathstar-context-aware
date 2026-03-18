@@ -54,16 +54,16 @@ metrics:
 
 ### The Dilution Problem
 
-The `sum()` in both numerator and denominator aggregates across **all pods** of each service. Since every pod has the same CPU request \( R \), the denominator grows linearly with replica count. This makes the combined metric a **replica-weighted average**:
+The `sum()` in both numerator and denominator aggregates across **all pods** of each service. Since every pod has the same CPU request $ R $, the denominator grows linearly with replica count. This makes the combined metric a **replica-weighted average**:
 
-\[
+$$
 M_{\text{combined}} = \frac{U_{\text{child}} \cdot N_{\text{child}} + U_{\text{parent}} \cdot N_{\text{parent}}}{N_{\text{child}} + N_{\text{parent}}}
-\]
+$$
 
 where:
-- \( U_{\text{child}} \) = child's average per-pod CPU utilization (%)
-- \( U_{\text{parent}} \) = parent's average per-pod CPU utilization (%)
-- \( N_{\text{child}} \), \( N_{\text{parent}} \) = replica counts
+- $ U_{\text{child}} $ = child's average per-pod CPU utilization (%)
+- $ U_{\text{parent}} $ = parent's average per-pod CPU utilization (%)
+- $ N_{\text{child}} $, $ N_{\text{parent}} $ = replica counts
 
 **When the parent scales up, its weight in the denominator increases, diluting the child's CPU signal.**
 
@@ -76,11 +76,11 @@ At `T+5min` during an HPA1 test run (`13:10:23 UTC, 2026-02-18`):
 | text-service (parent) | 4 | 23.1% | 4/5 = 80% |
 | user-mention (child) | 1 | 57.4% | 1/5 = 20% |
 
-\[
+$$
 M = \frac{57.4 \times 1 + 23.1 \times 4}{1 + 4} = \frac{57.4 + 92.3}{5} = 29.9\%
-\]
+$$
 
-The HPA threshold was 32%. Since \( 29.9 < 32 \), **the HPA decided no scaling was needed** — even though user-mention was at 57.4% CPU and overloaded.
+The HPA threshold was 32%. Since $ 29.9 < 32 $, **the HPA decided no scaling was needed** — even though user-mention was at 57.4% CPU and overloaded.
 
 This was verified across multiple timestamps:
 
@@ -138,27 +138,27 @@ metrics:
 
 For external metrics with `type: Value`, the Kubernetes HPA computes:
 
-\[
+$$
 \text{desiredReplicas} = \left\lceil \text{currentReplicas} \times \frac{\text{currentMetricValue}}{\text{targetValue}} \right\rceil
-\]
+$$
 
 The implicit assumption is that **scaling the target deployment will reduce the metric**. For a service's own CPU, this is true — more replicas means less load per pod. But for a **parent metric**, scaling the child has **zero effect** on the parent's CPU. The metric value stays the same while `currentReplicas` keeps growing.
 
 ### Proof of Runaway
 
-Let \( V \) = parent's CPU utilization (constant from the child's perspective), \( T \) = target value, and \( R_n \) = replica count at iteration \( n \):
+Let $ V $ = parent's CPU utilization (constant from the child's perspective), $ T $ = target value, and $ R_n $ = replica count at iteration $ n $:
 
-\[
+$$
 R_{n+1} = \left\lceil R_n \times \frac{V}{T} \right\rceil
-\]
+$$
 
-For any \( V > T \) (parent over threshold), this is a geometric progression:
+For any $ V > T $ (parent over threshold), this is a geometric progression:
 
-\[
+$$
 R_n \geq \left(\frac{V}{T}\right)^n
-\]
+$$
 
-Since \( V/T > 1 \), this grows without bound until hitting `maxReplicas`.
+Since $ V/T > 1 $, this grows without bound until hitting `maxReplicas`.
 
 ### Worked Example
 
@@ -193,8 +193,8 @@ The fix is to use `type: AverageValue` for the parent metric. The key difference
 
 | Target Type | Formula | Depends on currentReplicas? |
 |---|---|---|
-| `Value` | \( \lceil \text{currentReplicas} \times \frac{V}{T} \rceil \) | **Yes** — causes runaway |
-| `AverageValue` | \( \lceil \frac{V}{T} \rceil \) | **No** — stable |
+| `Value` | $ \lceil \text{currentReplicas} \times \frac{V}{T} \rceil $ | **Yes** — causes runaway |
+| `AverageValue` | $ \lceil \frac{V}{T} \rceil $ | **No** — stable |
 
 With `AverageValue`, the desired replica count is derived directly from the metric value divided by the target, with no feedback loop.
 
@@ -219,19 +219,19 @@ metrics:
 
 ### Stability Proof
 
-Let \( V \) = parent CPU utilization and \( A \) = averageValue target:
+Let $ V $ = parent CPU utilization and $ A $ = averageValue target:
 
-\[
+$$
 \text{desiredReplicas} = \left\lceil \frac{V}{A} \right\rceil
-\]
+$$
 
 This is a pure function of the parent's CPU. It does not depend on the child's current replica count, so there is no feedback loop. The result is bounded:
 
-\[
+$$
 1 \leq \text{desiredReplicas} \leq \left\lceil \frac{100}{A} \right\rceil
-\]
+$$
 
-With \( A = 25 \), the maximum from the parent signal alone is \( \lceil 100/25 \rceil = 4 \) replicas.
+With $ A = 25 $, the maximum from the parent signal alone is $ \lceil 100/25 \rceil = 4 $ replicas.
 
 ### Why `averageValue: "25"`?
 
