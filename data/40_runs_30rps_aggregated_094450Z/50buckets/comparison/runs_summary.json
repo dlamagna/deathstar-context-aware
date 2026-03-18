@@ -1,0 +1,4868 @@
+{
+  "created_at": "2026-03-17T15:23:40Z",
+  "out_dir": "/home/dlamagna/projects/autoscaling-kubernetes/data/40_runs_30rps_aggregated_094450Z/50buckets",
+  "labels": {
+    "hpa1": "Default HPA",
+    "hpa2": "Context-Aware HPA"
+  },
+  "hpa1": {
+    "label": "Default HPA",
+    "n_runs": 40,
+    "runs": [
+      {
+        "run_dir": "/home/dlamagna/projects/autoscaling-kubernetes/k6/grafana/2026-03-14/dual_test_30rps_hpa1_112152Z",
+        "k6": {
+          "load_mode": "rps",
+          "rps": 30,
+          "duration": "11m",
+          "vus": 50,
+          "timeout": "5s"
+        },
+        "hpa": {
+          "compose-post-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50
+          },
+          "text-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50
+          },
+          "user-mention-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50
+          }
+        },
+        "services": {
+          "compose-post-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "text-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "user-mention-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "nginx-thrift": {
+            "cpu_request": "300m",
+            "memory_request": null
+          }
+        },
+        "date": "2026-03-14 11:35:45 UTC",
+        "test_name": "dual_test_30rps",
+        "hpa_label": "hpa1",
+        "hpa_file": "deathstar-bench/hpa/default_hpa.yaml",
+        "metrics": {
+          "p50_ms": 806.766,
+          "p90_ms": 1347.362,
+          "p95_ms": 1555.566,
+          "p99_ms": 1936.956,
+          "fail_pct": 9.408,
+          "rps": 28.186
+        }
+      },
+      {
+        "run_dir": "/home/dlamagna/projects/autoscaling-kubernetes/k6/grafana/2026-03-14/dual_test_30rps_hpa1_122831Z",
+        "k6": {
+          "load_mode": "rps",
+          "rps": 30,
+          "duration": "11m",
+          "vus": 50,
+          "timeout": "5s"
+        },
+        "hpa": {
+          "compose-post-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50
+          },
+          "text-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50
+          },
+          "user-mention-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50
+          }
+        },
+        "services": {
+          "compose-post-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "text-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "user-mention-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "nginx-thrift": {
+            "cpu_request": "300m",
+            "memory_request": null
+          }
+        },
+        "date": "2026-03-14 12:42:24 UTC",
+        "test_name": "dual_test_30rps",
+        "hpa_label": "hpa1",
+        "hpa_file": "deathstar-bench/hpa/default_hpa.yaml",
+        "metrics": {
+          "p50_ms": 1226.162,
+          "p90_ms": 2126.691,
+          "p95_ms": 2264.16,
+          "p99_ms": 2519.323,
+          "fail_pct": 12.653,
+          "rps": 28.24
+        }
+      },
+      {
+        "run_dir": "/home/dlamagna/projects/autoscaling-kubernetes/k6/grafana/2026-03-14/dual_test_30rps_hpa1_133549Z",
+        "k6": {
+          "load_mode": "rps",
+          "rps": 30,
+          "duration": "11m",
+          "vus": 50,
+          "timeout": "5s"
+        },
+        "hpa": {
+          "compose-post-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50
+          },
+          "text-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50
+          },
+          "user-mention-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50
+          }
+        },
+        "services": {
+          "compose-post-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "text-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "user-mention-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "nginx-thrift": {
+            "cpu_request": "300m",
+            "memory_request": null
+          }
+        },
+        "date": "2026-03-14 13:49:45 UTC",
+        "test_name": "dual_test_30rps",
+        "hpa_label": "hpa1",
+        "hpa_file": "deathstar-bench/hpa/default_hpa.yaml",
+        "metrics": {
+          "p50_ms": 1007.859,
+          "p90_ms": 2115.979,
+          "p95_ms": 2332.164,
+          "p99_ms": 2803.79,
+          "fail_pct": 9.088,
+          "rps": 28.166
+        }
+      },
+      {
+        "run_dir": "/home/dlamagna/projects/autoscaling-kubernetes/k6/grafana/2026-03-14/dual_test_30rps_hpa1_144936Z",
+        "k6": {
+          "load_mode": "rps",
+          "rps": 30,
+          "duration": "11m",
+          "vus": 50,
+          "timeout": "5s"
+        },
+        "hpa": {
+          "compose-post-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50
+          },
+          "text-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50
+          },
+          "user-mention-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50
+          }
+        },
+        "services": {
+          "compose-post-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "text-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "user-mention-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "nginx-thrift": {
+            "cpu_request": "300m",
+            "memory_request": null
+          }
+        },
+        "date": "2026-03-14 15:03:36 UTC",
+        "test_name": "dual_test_30rps",
+        "hpa_label": "hpa1",
+        "hpa_file": "deathstar-bench/hpa/default_hpa.yaml",
+        "metrics": {
+          "p50_ms": 446.66,
+          "p90_ms": 967.604,
+          "p95_ms": 1074.102,
+          "p99_ms": 1467.028,
+          "fail_pct": 5.022,
+          "rps": 28.258
+        }
+      },
+      {
+        "run_dir": "/home/dlamagna/projects/autoscaling-kubernetes/k6/grafana/2026-03-14/dual_test_30rps_hpa1_155625Z",
+        "k6": {
+          "load_mode": "rps",
+          "rps": 30,
+          "duration": "11m",
+          "vus": 50,
+          "timeout": "5s"
+        },
+        "hpa": {
+          "compose-post-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50
+          },
+          "text-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50
+          },
+          "user-mention-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50
+          }
+        },
+        "services": {
+          "compose-post-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "text-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "user-mention-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "nginx-thrift": {
+            "cpu_request": "300m",
+            "memory_request": null
+          }
+        },
+        "date": "2026-03-14 16:10:25 UTC",
+        "test_name": "dual_test_30rps",
+        "hpa_label": "hpa1",
+        "hpa_file": "deathstar-bench/hpa/default_hpa.yaml",
+        "metrics": {
+          "p50_ms": 650.23,
+          "p90_ms": 1265.171,
+          "p95_ms": 1413.228,
+          "p99_ms": 1816.075,
+          "fail_pct": 6.888,
+          "rps": 28.298
+        }
+      },
+      {
+        "run_dir": "/home/dlamagna/projects/autoscaling-kubernetes/k6/grafana/2026-03-14/dual_test_30rps_hpa1_170221Z",
+        "k6": {
+          "load_mode": "rps",
+          "rps": 30,
+          "duration": "11m",
+          "vus": 50,
+          "timeout": "5s"
+        },
+        "hpa": {
+          "compose-post-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50
+          },
+          "text-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50
+          },
+          "user-mention-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50
+          }
+        },
+        "services": {
+          "compose-post-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "text-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "user-mention-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "nginx-thrift": {
+            "cpu_request": "300m",
+            "memory_request": null
+          }
+        },
+        "date": "2026-03-14 17:16:17 UTC",
+        "test_name": "dual_test_30rps",
+        "hpa_label": "hpa1",
+        "hpa_file": "deathstar-bench/hpa/default_hpa.yaml",
+        "metrics": {
+          "p50_ms": 663.613,
+          "p90_ms": 1358.656,
+          "p95_ms": 1505.723,
+          "p99_ms": 1854.248,
+          "fail_pct": 7.572,
+          "rps": 28.024
+        }
+      },
+      {
+        "run_dir": "/home/dlamagna/projects/autoscaling-kubernetes/k6/grafana/2026-03-14/dual_test_30rps_hpa1_180930Z",
+        "k6": {
+          "load_mode": "rps",
+          "rps": 30,
+          "duration": "11m",
+          "vus": 50,
+          "timeout": "5s"
+        },
+        "hpa": {
+          "compose-post-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50
+          },
+          "text-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50
+          },
+          "user-mention-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50
+          }
+        },
+        "services": {
+          "compose-post-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "text-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "user-mention-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "nginx-thrift": {
+            "cpu_request": "300m",
+            "memory_request": null
+          }
+        },
+        "date": "2026-03-14 18:23:27 UTC",
+        "test_name": "dual_test_30rps",
+        "hpa_label": "hpa1",
+        "hpa_file": "deathstar-bench/hpa/default_hpa.yaml",
+        "metrics": {
+          "p50_ms": 352.474,
+          "p90_ms": 744.376,
+          "p95_ms": 903.031,
+          "p99_ms": 1192.776,
+          "fail_pct": 3.846,
+          "rps": 28.072
+        }
+      },
+      {
+        "run_dir": "/home/dlamagna/projects/autoscaling-kubernetes/k6/grafana/2026-03-14/dual_test_30rps_hpa1_191608Z",
+        "k6": {
+          "load_mode": "rps",
+          "rps": 30,
+          "duration": "11m",
+          "vus": 50,
+          "timeout": "5s"
+        },
+        "hpa": {
+          "compose-post-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50
+          },
+          "text-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50
+          },
+          "user-mention-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50
+          }
+        },
+        "services": {
+          "compose-post-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "text-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "user-mention-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "nginx-thrift": {
+            "cpu_request": "300m",
+            "memory_request": null
+          }
+        },
+        "date": "2026-03-14 19:30:05 UTC",
+        "test_name": "dual_test_30rps",
+        "hpa_label": "hpa1",
+        "hpa_file": "deathstar-bench/hpa/default_hpa.yaml",
+        "metrics": {
+          "p50_ms": 761.754,
+          "p90_ms": 1305.603,
+          "p95_ms": 1460.215,
+          "p99_ms": 1889.242,
+          "fail_pct": 8.452,
+          "rps": 28.202
+        }
+      },
+      {
+        "run_dir": "/home/dlamagna/projects/autoscaling-kubernetes/k6/grafana/2026-03-14/dual_test_30rps_hpa1_210213Z",
+        "k6": {
+          "load_mode": "rps",
+          "rps": 30,
+          "duration": "11m",
+          "vus": 50,
+          "timeout": "5s"
+        },
+        "hpa": {
+          "compose-post-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50
+          },
+          "text-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50
+          },
+          "user-mention-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50
+          }
+        },
+        "services": {
+          "compose-post-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "text-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "user-mention-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "nginx-thrift": {
+            "cpu_request": "300m",
+            "memory_request": null
+          }
+        },
+        "date": "2026-03-14 21:16:13 UTC",
+        "test_name": "dual_test_30rps",
+        "hpa_label": "hpa1",
+        "hpa_file": "deathstar-bench/hpa/default_hpa.yaml",
+        "metrics": {
+          "p50_ms": 648.359,
+          "p90_ms": 1140.902,
+          "p95_ms": 1268.655,
+          "p99_ms": 1646.619,
+          "fail_pct": 7.279,
+          "rps": 28.318
+        }
+      },
+      {
+        "run_dir": "/home/dlamagna/projects/autoscaling-kubernetes/k6/grafana/2026-03-14/dual_test_30rps_hpa1_220938Z",
+        "k6": {
+          "load_mode": "rps",
+          "rps": 30,
+          "duration": "11m",
+          "vus": 50,
+          "timeout": "5s"
+        },
+        "hpa": {
+          "compose-post-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50
+          },
+          "text-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50
+          },
+          "user-mention-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50
+          }
+        },
+        "services": {
+          "compose-post-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "text-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "user-mention-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "nginx-thrift": {
+            "cpu_request": "300m",
+            "memory_request": null
+          }
+        },
+        "date": "2026-03-14 22:23:35 UTC",
+        "test_name": "dual_test_30rps",
+        "hpa_label": "hpa1",
+        "hpa_file": "deathstar-bench/hpa/default_hpa.yaml",
+        "metrics": {
+          "p50_ms": 706.569,
+          "p90_ms": 1336.838,
+          "p95_ms": 1483.415,
+          "p99_ms": 1784.522,
+          "fail_pct": 7.859,
+          "rps": 28.17
+        }
+      },
+      {
+        "run_dir": "/home/dlamagna/projects/autoscaling-kubernetes/k6/grafana/2026-03-14/dual_test_30rps_hpa1_231836Z",
+        "k6": {
+          "load_mode": "rps",
+          "rps": 30,
+          "duration": "11m",
+          "vus": 50,
+          "timeout": "5s"
+        },
+        "hpa": {
+          "compose-post-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50
+          },
+          "text-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50
+          },
+          "user-mention-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50
+          }
+        },
+        "services": {
+          "compose-post-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "text-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "user-mention-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "nginx-thrift": {
+            "cpu_request": "300m",
+            "memory_request": null
+          }
+        },
+        "date": "2026-03-14 23:32:32 UTC",
+        "test_name": "dual_test_30rps",
+        "hpa_label": "hpa1",
+        "hpa_file": "deathstar-bench/hpa/default_hpa.yaml",
+        "metrics": {
+          "p50_ms": 769.631,
+          "p90_ms": 1419.252,
+          "p95_ms": 1592.516,
+          "p99_ms": 1970.117,
+          "fail_pct": 8.472,
+          "rps": 28.364
+        }
+      },
+      {
+        "run_dir": "/home/dlamagna/projects/autoscaling-kubernetes/k6/grafana/2026-03-15/dual_test_30rps_hpa1_002522Z",
+        "k6": {
+          "load_mode": "rps",
+          "rps": 30,
+          "duration": "11m",
+          "vus": 50,
+          "timeout": "5s"
+        },
+        "hpa": {
+          "compose-post-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50
+          },
+          "text-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50
+          },
+          "user-mention-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50
+          }
+        },
+        "services": {
+          "compose-post-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "text-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "user-mention-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "nginx-thrift": {
+            "cpu_request": "300m",
+            "memory_request": null
+          }
+        },
+        "date": "2026-03-15 00:39:18 UTC",
+        "test_name": "dual_test_30rps",
+        "hpa_label": "hpa1",
+        "hpa_file": "deathstar-bench/hpa/default_hpa.yaml",
+        "metrics": {
+          "p50_ms": 834.801,
+          "p90_ms": 1588.467,
+          "p95_ms": 1830.749,
+          "p99_ms": 2352.454,
+          "fail_pct": 8.737,
+          "rps": 27.97
+        }
+      },
+      {
+        "run_dir": "/home/dlamagna/projects/autoscaling-kubernetes/k6/grafana/2026-03-15/dual_test_30rps_hpa1_013232Z",
+        "k6": {
+          "load_mode": "rps",
+          "rps": 30,
+          "duration": "11m",
+          "vus": 50,
+          "timeout": "5s"
+        },
+        "hpa": {
+          "compose-post-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50
+          },
+          "text-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50
+          },
+          "user-mention-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50
+          }
+        },
+        "services": {
+          "compose-post-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "text-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "user-mention-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "nginx-thrift": {
+            "cpu_request": "300m",
+            "memory_request": null
+          }
+        },
+        "date": "2026-03-15 01:46:29 UTC",
+        "test_name": "dual_test_30rps",
+        "hpa_label": "hpa1",
+        "hpa_file": "deathstar-bench/hpa/default_hpa.yaml",
+        "metrics": {
+          "p50_ms": 420.29,
+          "p90_ms": 919.144,
+          "p95_ms": 1014.279,
+          "p99_ms": 1401.862,
+          "fail_pct": 4.84,
+          "rps": 27.932
+        }
+      },
+      {
+        "run_dir": "/home/dlamagna/projects/autoscaling-kubernetes/k6/grafana/2026-03-15/dual_test_30rps_hpa1_023929Z",
+        "k6": {
+          "load_mode": "rps",
+          "rps": 30,
+          "duration": "11m",
+          "vus": 50,
+          "timeout": "5s"
+        },
+        "hpa": {
+          "compose-post-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50
+          },
+          "text-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50
+          },
+          "user-mention-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50
+          }
+        },
+        "services": {
+          "compose-post-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "text-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "user-mention-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "nginx-thrift": {
+            "cpu_request": "300m",
+            "memory_request": null
+          }
+        },
+        "date": "2026-03-15 02:53:30 UTC",
+        "test_name": "dual_test_30rps",
+        "hpa_label": "hpa1",
+        "hpa_file": "deathstar-bench/hpa/default_hpa.yaml",
+        "metrics": {
+          "p50_ms": 1052.497,
+          "p90_ms": 1852.112,
+          "p95_ms": 2044.428,
+          "p99_ms": 2397.951,
+          "fail_pct": 11.268,
+          "rps": 27.916
+        }
+      },
+      {
+        "run_dir": "/home/dlamagna/projects/autoscaling-kubernetes/k6/grafana/2026-03-15/dual_test_30rps_hpa1_034632Z",
+        "k6": {
+          "load_mode": "rps",
+          "rps": 30,
+          "duration": "11m",
+          "vus": 50,
+          "timeout": "5s"
+        },
+        "hpa": {
+          "compose-post-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50
+          },
+          "text-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50
+          },
+          "user-mention-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50
+          }
+        },
+        "services": {
+          "compose-post-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "text-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "user-mention-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "nginx-thrift": {
+            "cpu_request": "300m",
+            "memory_request": null
+          }
+        },
+        "date": "2026-03-15 04:00:29 UTC",
+        "test_name": "dual_test_30rps",
+        "hpa_label": "hpa1",
+        "hpa_file": "deathstar-bench/hpa/default_hpa.yaml",
+        "metrics": {
+          "p50_ms": 581.919,
+          "p90_ms": 1131.857,
+          "p95_ms": 1240.206,
+          "p99_ms": 1433.49,
+          "fail_pct": 6.756,
+          "rps": 27.9
+        }
+      },
+      {
+        "run_dir": "/home/dlamagna/projects/autoscaling-kubernetes/k6/grafana/2026-03-15/dual_test_30rps_hpa1_051850Z",
+        "k6": {
+          "load_mode": "rps",
+          "rps": 30,
+          "duration": "11m",
+          "vus": 50,
+          "timeout": "5s"
+        },
+        "hpa": {
+          "compose-post-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50
+          },
+          "text-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50
+          },
+          "user-mention-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50
+          }
+        },
+        "services": {
+          "compose-post-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "text-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "user-mention-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "nginx-thrift": {
+            "cpu_request": "300m",
+            "memory_request": null
+          }
+        },
+        "date": "2026-03-15 05:32:43 UTC",
+        "test_name": "dual_test_30rps",
+        "hpa_label": "hpa1",
+        "hpa_file": "deathstar-bench/hpa/default_hpa.yaml",
+        "metrics": {
+          "p50_ms": 1130.193,
+          "p90_ms": 2071.788,
+          "p95_ms": 2168.805,
+          "p99_ms": 2428.678,
+          "fail_pct": 12.545,
+          "rps": 28.278
+        }
+      },
+      {
+        "run_dir": "/home/dlamagna/projects/autoscaling-kubernetes/k6/grafana/2026-03-15/dual_test_30rps_hpa1_062541Z",
+        "k6": {
+          "load_mode": "rps",
+          "rps": 30,
+          "duration": "11m",
+          "vus": 50,
+          "timeout": "5s"
+        },
+        "hpa": {
+          "compose-post-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50
+          },
+          "text-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50
+          },
+          "user-mention-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50
+          }
+        },
+        "services": {
+          "compose-post-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "text-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "user-mention-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "nginx-thrift": {
+            "cpu_request": "300m",
+            "memory_request": null
+          }
+        },
+        "date": "2026-03-15 06:39:37 UTC",
+        "test_name": "dual_test_30rps",
+        "hpa_label": "hpa1",
+        "hpa_file": "deathstar-bench/hpa/default_hpa.yaml",
+        "metrics": {
+          "p50_ms": 945.045,
+          "p90_ms": 1629.778,
+          "p95_ms": 1819.779,
+          "p99_ms": 2113.151,
+          "fail_pct": 10.07,
+          "rps": 28.04
+        }
+      },
+      {
+        "run_dir": "/home/dlamagna/projects/autoscaling-kubernetes/k6/grafana/2026-03-15/dual_test_30rps_hpa1_073151Z",
+        "k6": {
+          "load_mode": "rps",
+          "rps": 30,
+          "duration": "11m",
+          "vus": 50,
+          "timeout": "5s"
+        },
+        "hpa": {
+          "compose-post-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50
+          },
+          "text-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50
+          },
+          "user-mention-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50
+          }
+        },
+        "services": {
+          "compose-post-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "text-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "user-mention-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "nginx-thrift": {
+            "cpu_request": "300m",
+            "memory_request": null
+          }
+        },
+        "date": "2026-03-15 07:45:47 UTC",
+        "test_name": "dual_test_30rps",
+        "hpa_label": "hpa1",
+        "hpa_file": "deathstar-bench/hpa/default_hpa.yaml",
+        "metrics": {
+          "p50_ms": 1006.76,
+          "p90_ms": 1855.044,
+          "p95_ms": 2101.657,
+          "p99_ms": 2488.983,
+          "fail_pct": 9.134,
+          "rps": 28.056
+        }
+      },
+      {
+        "run_dir": "/home/dlamagna/projects/autoscaling-kubernetes/k6/grafana/2026-03-15/dual_test_30rps_hpa1_083853Z",
+        "k6": {
+          "load_mode": "rps",
+          "rps": 30,
+          "duration": "11m",
+          "vus": 50,
+          "timeout": "5s"
+        },
+        "hpa": {
+          "compose-post-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50
+          },
+          "text-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50
+          },
+          "user-mention-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50
+          }
+        },
+        "services": {
+          "compose-post-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "text-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "user-mention-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "nginx-thrift": {
+            "cpu_request": "300m",
+            "memory_request": null
+          }
+        },
+        "date": "2026-03-15 08:52:49 UTC",
+        "test_name": "dual_test_30rps",
+        "hpa_label": "hpa1",
+        "hpa_file": "deathstar-bench/hpa/default_hpa.yaml",
+        "metrics": {
+          "p50_ms": 1191.599,
+          "p90_ms": 2209.627,
+          "p95_ms": 2372.449,
+          "p99_ms": 2532.148,
+          "fail_pct": 12.011,
+          "rps": 27.924
+        }
+      },
+      {
+        "run_dir": "/home/dlamagna/projects/autoscaling-kubernetes/k6/grafana/2026-03-15/dual_test_30rps_hpa1_094607Z",
+        "k6": {
+          "load_mode": "rps",
+          "rps": 30,
+          "duration": "11m",
+          "vus": 50,
+          "timeout": "5s"
+        },
+        "hpa": {
+          "compose-post-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50
+          },
+          "text-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50
+          },
+          "user-mention-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50
+          }
+        },
+        "services": {
+          "compose-post-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "text-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "user-mention-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "nginx-thrift": {
+            "cpu_request": "300m",
+            "memory_request": null
+          }
+        },
+        "date": "2026-03-15 10:00:03 UTC",
+        "test_name": "dual_test_30rps",
+        "hpa_label": "hpa1",
+        "hpa_file": "deathstar-bench/hpa/default_hpa.yaml",
+        "metrics": {
+          "p50_ms": 889.468,
+          "p90_ms": 1640.536,
+          "p95_ms": 1828.262,
+          "p99_ms": 2311.601,
+          "fail_pct": 8.839,
+          "rps": 28.258
+        }
+      },
+      {
+        "run_dir": "/home/dlamagna/projects/autoscaling-kubernetes/k6/grafana/2026-03-15/dual_test_30rps_hpa1_105320Z",
+        "k6": {
+          "load_mode": "rps",
+          "rps": 30,
+          "duration": "11m",
+          "vus": 50,
+          "timeout": "5s"
+        },
+        "hpa": {
+          "compose-post-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50
+          },
+          "text-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50
+          },
+          "user-mention-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50
+          }
+        },
+        "services": {
+          "compose-post-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "text-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "user-mention-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "nginx-thrift": {
+            "cpu_request": "300m",
+            "memory_request": null
+          }
+        },
+        "date": "2026-03-15 11:07:17 UTC",
+        "test_name": "dual_test_30rps",
+        "hpa_label": "hpa1",
+        "hpa_file": "deathstar-bench/hpa/default_hpa.yaml",
+        "metrics": {
+          "p50_ms": 545.035,
+          "p90_ms": 1175.082,
+          "p95_ms": 1270.784,
+          "p99_ms": 1498.108,
+          "fail_pct": 6.009,
+          "rps": 28.056
+        }
+      },
+      {
+        "run_dir": "/home/dlamagna/projects/autoscaling-kubernetes/k6/grafana/2026-03-15/dual_test_30rps_hpa1_120039Z",
+        "k6": {
+          "load_mode": "rps",
+          "rps": 30,
+          "duration": "11m",
+          "vus": 50,
+          "timeout": "5s"
+        },
+        "hpa": {
+          "compose-post-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50
+          },
+          "text-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50
+          },
+          "user-mention-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50
+          }
+        },
+        "services": {
+          "compose-post-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "text-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "user-mention-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "nginx-thrift": {
+            "cpu_request": "300m",
+            "memory_request": null
+          }
+        },
+        "date": "2026-03-15 12:14:35 UTC",
+        "test_name": "dual_test_30rps",
+        "hpa_label": "hpa1",
+        "hpa_file": "deathstar-bench/hpa/default_hpa.yaml",
+        "metrics": {
+          "p50_ms": 711.426,
+          "p90_ms": 1368.412,
+          "p95_ms": 1496.186,
+          "p99_ms": 1783.477,
+          "fail_pct": 8.177,
+          "rps": 28.154
+        }
+      },
+      {
+        "run_dir": "/home/dlamagna/projects/autoscaling-kubernetes/k6/grafana/2026-03-15/dual_test_30rps_hpa1_140109Z",
+        "k6": {
+          "load_mode": "rps",
+          "rps": 30,
+          "duration": "11m",
+          "vus": 50,
+          "timeout": "5s"
+        },
+        "hpa": {
+          "compose-post-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50
+          },
+          "text-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50
+          },
+          "user-mention-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50
+          }
+        },
+        "services": {
+          "compose-post-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "text-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "user-mention-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "nginx-thrift": {
+            "cpu_request": "300m",
+            "memory_request": null
+          }
+        },
+        "date": "2026-03-15 14:15:03 UTC",
+        "test_name": "dual_test_30rps",
+        "hpa_label": "hpa1",
+        "hpa_file": "deathstar-bench/hpa/default_hpa.yaml",
+        "metrics": {
+          "p50_ms": 475.983,
+          "p90_ms": 1196.236,
+          "p95_ms": 1390.37,
+          "p99_ms": 1773.288,
+          "fail_pct": 4.616,
+          "rps": 28.334
+        }
+      },
+      {
+        "run_dir": "/home/dlamagna/projects/autoscaling-kubernetes/k6/grafana/2026-03-15/dual_test_30rps_hpa1_150726Z",
+        "k6": {
+          "load_mode": "rps",
+          "rps": 30,
+          "duration": "11m",
+          "vus": 50,
+          "timeout": "5s"
+        },
+        "hpa": {
+          "compose-post-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50
+          },
+          "text-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50
+          },
+          "user-mention-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50
+          }
+        },
+        "services": {
+          "compose-post-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "text-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "user-mention-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "nginx-thrift": {
+            "cpu_request": "300m",
+            "memory_request": null
+          }
+        },
+        "date": "2026-03-15 15:21:27 UTC",
+        "test_name": "dual_test_30rps",
+        "hpa_label": "hpa1",
+        "hpa_file": "deathstar-bench/hpa/default_hpa.yaml",
+        "metrics": {
+          "p50_ms": 770.213,
+          "p90_ms": 1380.675,
+          "p95_ms": 1520.886,
+          "p99_ms": 1793.038,
+          "fail_pct": 8.535,
+          "rps": 28.114
+        }
+      },
+      {
+        "run_dir": "/home/dlamagna/projects/autoscaling-kubernetes/k6/grafana/2026-03-15/dual_test_30rps_hpa1_161337Z",
+        "k6": {
+          "load_mode": "rps",
+          "rps": 30,
+          "duration": "11m",
+          "vus": 50,
+          "timeout": "5s"
+        },
+        "hpa": {
+          "compose-post-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50
+          },
+          "text-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50
+          },
+          "user-mention-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50
+          }
+        },
+        "services": {
+          "compose-post-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "text-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "user-mention-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "nginx-thrift": {
+            "cpu_request": "300m",
+            "memory_request": null
+          }
+        },
+        "date": "2026-03-15 16:27:35 UTC",
+        "test_name": "dual_test_30rps",
+        "hpa_label": "hpa1",
+        "hpa_file": "deathstar-bench/hpa/default_hpa.yaml",
+        "metrics": {
+          "p50_ms": 495.034,
+          "p90_ms": 1088.264,
+          "p95_ms": 1224.669,
+          "p99_ms": 1534.407,
+          "fail_pct": 5.649,
+          "rps": 28.222
+        }
+      },
+      {
+        "run_dir": "/home/dlamagna/projects/autoscaling-kubernetes/k6/grafana/2026-03-15/dual_test_30rps_hpa1_172042Z",
+        "k6": {
+          "load_mode": "rps",
+          "rps": 30,
+          "duration": "11m",
+          "vus": 50,
+          "timeout": "5s"
+        },
+        "hpa": {
+          "compose-post-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50
+          },
+          "text-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50
+          },
+          "user-mention-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50
+          }
+        },
+        "services": {
+          "compose-post-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "text-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "user-mention-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "nginx-thrift": {
+            "cpu_request": "300m",
+            "memory_request": null
+          }
+        },
+        "date": "2026-03-15 17:34:39 UTC",
+        "test_name": "dual_test_30rps",
+        "hpa_label": "hpa1",
+        "hpa_file": "deathstar-bench/hpa/default_hpa.yaml",
+        "metrics": {
+          "p50_ms": 613.37,
+          "p90_ms": 1071.645,
+          "p95_ms": 1173.526,
+          "p99_ms": 1634.886,
+          "fail_pct": 7.069,
+          "rps": 27.972
+        }
+      },
+      {
+        "run_dir": "/home/dlamagna/projects/autoscaling-kubernetes/k6/grafana/2026-03-15/dual_test_30rps_hpa1_182636Z",
+        "k6": {
+          "load_mode": "rps",
+          "rps": 30,
+          "duration": "11m",
+          "vus": 50,
+          "timeout": "5s"
+        },
+        "hpa": {
+          "compose-post-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50
+          },
+          "text-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50
+          },
+          "user-mention-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50
+          }
+        },
+        "services": {
+          "compose-post-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "text-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "user-mention-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "nginx-thrift": {
+            "cpu_request": "300m",
+            "memory_request": null
+          }
+        },
+        "date": "2026-03-15 18:40:36 UTC",
+        "test_name": "dual_test_30rps",
+        "hpa_label": "hpa1",
+        "hpa_file": "deathstar-bench/hpa/default_hpa.yaml",
+        "metrics": {
+          "p50_ms": 605.553,
+          "p90_ms": 1274.213,
+          "p95_ms": 1427.044,
+          "p99_ms": 1612.458,
+          "fail_pct": 5.684,
+          "rps": 28.138
+        }
+      },
+      {
+        "run_dir": "/home/dlamagna/projects/autoscaling-kubernetes/k6/grafana/2026-03-15/dual_test_30rps_hpa1_193344Z",
+        "k6": {
+          "load_mode": "rps",
+          "rps": 30,
+          "duration": "11m",
+          "vus": 50,
+          "timeout": "5s"
+        },
+        "hpa": {
+          "compose-post-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50
+          },
+          "text-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50
+          },
+          "user-mention-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50
+          }
+        },
+        "services": {
+          "compose-post-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "text-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "user-mention-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "nginx-thrift": {
+            "cpu_request": "300m",
+            "memory_request": null
+          }
+        },
+        "date": "2026-03-15 19:47:44 UTC",
+        "test_name": "dual_test_30rps",
+        "hpa_label": "hpa1",
+        "hpa_file": "deathstar-bench/hpa/default_hpa.yaml",
+        "metrics": {
+          "p50_ms": 397.862,
+          "p90_ms": 914.222,
+          "p95_ms": 997.309,
+          "p99_ms": 1317.707,
+          "fail_pct": 4.683,
+          "rps": 28.372
+        }
+      },
+      {
+        "run_dir": "/home/dlamagna/projects/autoscaling-kubernetes/k6/grafana/2026-03-15/dual_test_30rps_hpa1_203939Z",
+        "k6": {
+          "load_mode": "rps",
+          "rps": 30,
+          "duration": "11m",
+          "vus": 50,
+          "timeout": "5s"
+        },
+        "hpa": {
+          "compose-post-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50
+          },
+          "text-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50
+          },
+          "user-mention-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50
+          }
+        },
+        "services": {
+          "compose-post-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "text-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "user-mention-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "nginx-thrift": {
+            "cpu_request": "300m",
+            "memory_request": null
+          }
+        },
+        "date": "2026-03-15 20:53:41 UTC",
+        "test_name": "dual_test_30rps",
+        "hpa_label": "hpa1",
+        "hpa_file": "deathstar-bench/hpa/default_hpa.yaml",
+        "metrics": {
+          "p50_ms": 696.296,
+          "p90_ms": 1188.972,
+          "p95_ms": 1284.791,
+          "p99_ms": 1670.922,
+          "fail_pct": 7.61,
+          "rps": 28.446
+        }
+      },
+      {
+        "run_dir": "/home/dlamagna/projects/autoscaling-kubernetes/k6/grafana/2026-03-15/dual_test_30rps_hpa1_214600Z",
+        "k6": {
+          "load_mode": "rps",
+          "rps": 30,
+          "duration": "11m",
+          "vus": 50,
+          "timeout": "5s"
+        },
+        "hpa": {
+          "compose-post-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50
+          },
+          "text-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50
+          },
+          "user-mention-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50
+          }
+        },
+        "services": {
+          "compose-post-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "text-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "user-mention-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "nginx-thrift": {
+            "cpu_request": "300m",
+            "memory_request": null
+          }
+        },
+        "date": "2026-03-15 22:00:02 UTC",
+        "test_name": "dual_test_30rps",
+        "hpa_label": "hpa1",
+        "hpa_file": "deathstar-bench/hpa/default_hpa.yaml",
+        "metrics": {
+          "p50_ms": 408.925,
+          "p90_ms": 881.372,
+          "p95_ms": 1035.84,
+          "p99_ms": 1391.836,
+          "fail_pct": 4.863,
+          "rps": 28.492
+        }
+      },
+      {
+        "run_dir": "/home/dlamagna/projects/autoscaling-kubernetes/k6/grafana/2026-03-15/dual_test_30rps_hpa1_225319Z",
+        "k6": {
+          "load_mode": "rps",
+          "rps": 30,
+          "duration": "11m",
+          "vus": 50,
+          "timeout": "5s"
+        },
+        "hpa": {
+          "compose-post-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50
+          },
+          "text-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50
+          },
+          "user-mention-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50
+          }
+        },
+        "services": {
+          "compose-post-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "text-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "user-mention-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "nginx-thrift": {
+            "cpu_request": "300m",
+            "memory_request": null
+          }
+        },
+        "date": "2026-03-15 23:07:21 UTC",
+        "test_name": "dual_test_30rps",
+        "hpa_label": "hpa1",
+        "hpa_file": "deathstar-bench/hpa/default_hpa.yaml",
+        "metrics": {
+          "p50_ms": 1018.717,
+          "p90_ms": 2282.724,
+          "p95_ms": 2475.75,
+          "p99_ms": 2664.764,
+          "fail_pct": 8.957,
+          "rps": 28.476
+        }
+      },
+      {
+        "run_dir": "/home/dlamagna/projects/autoscaling-kubernetes/k6/grafana/2026-03-16/dual_test_30rps_hpa1_000115Z",
+        "k6": {
+          "load_mode": "rps",
+          "rps": 30,
+          "duration": "11m",
+          "vus": 50,
+          "timeout": "5s"
+        },
+        "hpa": {
+          "compose-post-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50
+          },
+          "text-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50
+          },
+          "user-mention-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50
+          }
+        },
+        "services": {
+          "compose-post-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "text-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "user-mention-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "nginx-thrift": {
+            "cpu_request": "300m",
+            "memory_request": null
+          }
+        },
+        "date": "2026-03-16 00:15:14 UTC",
+        "test_name": "dual_test_30rps",
+        "hpa_label": "hpa1",
+        "hpa_file": "deathstar-bench/hpa/default_hpa.yaml",
+        "metrics": {
+          "p50_ms": 1250.296,
+          "p90_ms": 2418.892,
+          "p95_ms": 2583.74,
+          "p99_ms": 2797.489,
+          "fail_pct": 12.467,
+          "rps": 28.244
+        }
+      },
+      {
+        "run_dir": "/home/dlamagna/projects/autoscaling-kubernetes/k6/grafana/2026-03-16/dual_test_30rps_hpa1_010741Z",
+        "k6": {
+          "load_mode": "rps",
+          "rps": 30,
+          "duration": "11m",
+          "vus": 50,
+          "timeout": "5s"
+        },
+        "hpa": {
+          "compose-post-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50
+          },
+          "text-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50
+          },
+          "user-mention-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50
+          }
+        },
+        "services": {
+          "compose-post-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "text-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "user-mention-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "nginx-thrift": {
+            "cpu_request": "300m",
+            "memory_request": null
+          }
+        },
+        "date": "2026-03-16 01:21:43 UTC",
+        "test_name": "dual_test_30rps",
+        "hpa_label": "hpa1",
+        "hpa_file": "deathstar-bench/hpa/default_hpa.yaml",
+        "metrics": {
+          "p50_ms": 632.798,
+          "p90_ms": 1156.569,
+          "p95_ms": 1259.052,
+          "p99_ms": 1428.145,
+          "fail_pct": 6.425,
+          "rps": 28.28
+        }
+      },
+      {
+        "run_dir": "/home/dlamagna/projects/autoscaling-kubernetes/k6/grafana/2026-03-16/dual_test_30rps_hpa1_021404Z",
+        "k6": {
+          "load_mode": "rps",
+          "rps": 30,
+          "duration": "11m",
+          "vus": 50,
+          "timeout": "5s"
+        },
+        "hpa": {
+          "compose-post-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50
+          },
+          "text-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50
+          },
+          "user-mention-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50
+          }
+        },
+        "services": {
+          "compose-post-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "text-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "user-mention-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "nginx-thrift": {
+            "cpu_request": "300m",
+            "memory_request": null
+          }
+        },
+        "date": "2026-03-16 02:28:04 UTC",
+        "test_name": "dual_test_30rps",
+        "hpa_label": "hpa1",
+        "hpa_file": "deathstar-bench/hpa/default_hpa.yaml",
+        "metrics": {
+          "p50_ms": 795.436,
+          "p90_ms": 1464.701,
+          "p95_ms": 1602.598,
+          "p99_ms": 1945.68,
+          "fail_pct": 8.729,
+          "rps": 28.402
+        }
+      },
+      {
+        "run_dir": "/home/dlamagna/projects/autoscaling-kubernetes/k6/grafana/2026-03-16/dual_test_30rps_hpa1_032100Z",
+        "k6": {
+          "load_mode": "rps",
+          "rps": 30,
+          "duration": "11m",
+          "vus": 50,
+          "timeout": "5s"
+        },
+        "hpa": {
+          "compose-post-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50
+          },
+          "text-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50
+          },
+          "user-mention-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50
+          }
+        },
+        "services": {
+          "compose-post-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "text-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "user-mention-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "nginx-thrift": {
+            "cpu_request": "300m",
+            "memory_request": null
+          }
+        },
+        "date": "2026-03-16 03:34:58 UTC",
+        "test_name": "dual_test_30rps",
+        "hpa_label": "hpa1",
+        "hpa_file": "deathstar-bench/hpa/default_hpa.yaml",
+        "metrics": {
+          "p50_ms": 815.15,
+          "p90_ms": 1283.288,
+          "p95_ms": 1433.443,
+          "p99_ms": 1968.635,
+          "fail_pct": 8.771,
+          "rps": 28.062
+        }
+      },
+      {
+        "run_dir": "/home/dlamagna/projects/autoscaling-kubernetes/k6/grafana/2026-03-16/dual_test_30rps_hpa1_042831Z",
+        "k6": {
+          "load_mode": "rps",
+          "rps": 30,
+          "duration": "11m",
+          "vus": 50,
+          "timeout": "5s"
+        },
+        "hpa": {
+          "compose-post-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50
+          },
+          "text-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50
+          },
+          "user-mention-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50
+          }
+        },
+        "services": {
+          "compose-post-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "text-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "user-mention-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "nginx-thrift": {
+            "cpu_request": "300m",
+            "memory_request": null
+          }
+        },
+        "date": "2026-03-16 04:42:29 UTC",
+        "test_name": "dual_test_30rps",
+        "hpa_label": "hpa1",
+        "hpa_file": "deathstar-bench/hpa/default_hpa.yaml",
+        "metrics": {
+          "p50_ms": 502.161,
+          "p90_ms": 1020.555,
+          "p95_ms": 1110.632,
+          "p99_ms": 1302.303,
+          "fail_pct": 5.442,
+          "rps": 27.92
+        }
+      },
+      {
+        "run_dir": "/home/dlamagna/projects/autoscaling-kubernetes/k6/grafana/2026-03-16/dual_test_30rps_hpa1_053502Z",
+        "k6": {
+          "load_mode": "rps",
+          "rps": 30,
+          "duration": "11m",
+          "vus": 50,
+          "timeout": "5s"
+        },
+        "hpa": {
+          "compose-post-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50
+          },
+          "text-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50
+          },
+          "user-mention-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50
+          }
+        },
+        "services": {
+          "compose-post-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "text-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "user-mention-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "nginx-thrift": {
+            "cpu_request": "300m",
+            "memory_request": null
+          }
+        },
+        "date": "2026-03-16 05:49:00 UTC",
+        "test_name": "dual_test_30rps",
+        "hpa_label": "hpa1",
+        "hpa_file": "deathstar-bench/hpa/default_hpa.yaml",
+        "metrics": {
+          "p50_ms": 1158.628,
+          "p90_ms": 1998.115,
+          "p95_ms": 2147.228,
+          "p99_ms": 2450.295,
+          "fail_pct": 11.754,
+          "rps": 27.908
+        }
+      },
+      {
+        "run_dir": "/home/dlamagna/projects/autoscaling-kubernetes/k6/grafana/2026-03-16/dual_test_30rps_hpa1_064207Z",
+        "k6": {
+          "load_mode": "rps",
+          "rps": 30,
+          "duration": "11m",
+          "vus": 50,
+          "timeout": "5s"
+        },
+        "hpa": {
+          "compose-post-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50
+          },
+          "text-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50
+          },
+          "user-mention-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50
+          }
+        },
+        "services": {
+          "compose-post-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "text-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "user-mention-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "nginx-thrift": {
+            "cpu_request": "300m",
+            "memory_request": null
+          }
+        },
+        "date": "2026-03-16 06:56:05 UTC",
+        "test_name": "dual_test_30rps",
+        "hpa_label": "hpa1",
+        "hpa_file": "deathstar-bench/hpa/default_hpa.yaml",
+        "metrics": {
+          "p50_ms": 981.728,
+          "p90_ms": 1828.589,
+          "p95_ms": 2011.726,
+          "p99_ms": 2569.656,
+          "fail_pct": 9.267,
+          "rps": 28.232
+        }
+      },
+      {
+        "run_dir": "/home/dlamagna/projects/autoscaling-kubernetes/k6/grafana/2026-03-16/dual_test_30rps_hpa1_074906Z",
+        "k6": {
+          "load_mode": "rps",
+          "rps": 30,
+          "duration": "11m",
+          "vus": 50,
+          "timeout": "5s"
+        },
+        "hpa": {
+          "compose-post-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50
+          },
+          "text-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50
+          },
+          "user-mention-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50
+          }
+        },
+        "services": {
+          "compose-post-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "text-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "user-mention-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "nginx-thrift": {
+            "cpu_request": "300m",
+            "memory_request": null
+          }
+        },
+        "date": "2026-03-16 08:03:02 UTC",
+        "test_name": "dual_test_30rps",
+        "hpa_label": "hpa1",
+        "hpa_file": "deathstar-bench/hpa/default_hpa.yaml",
+        "metrics": {
+          "p50_ms": 749.126,
+          "p90_ms": 1342.784,
+          "p95_ms": 1446.436,
+          "p99_ms": 1643.785,
+          "fail_pct": 8.154,
+          "rps": 28.344
+        }
+      },
+      {
+        "run_dir": "/home/dlamagna/projects/autoscaling-kubernetes/k6/grafana/2026-03-16/dual_test_30rps_hpa1_085626Z",
+        "k6": {
+          "load_mode": "rps",
+          "rps": 30,
+          "duration": "11m",
+          "vus": 50,
+          "timeout": "5s"
+        },
+        "hpa": {
+          "compose-post-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50
+          },
+          "text-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50
+          },
+          "user-mention-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50
+          }
+        },
+        "services": {
+          "compose-post-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "text-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "user-mention-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "nginx-thrift": {
+            "cpu_request": "300m",
+            "memory_request": null
+          }
+        },
+        "date": "2026-03-16 09:10:30 UTC",
+        "test_name": "dual_test_30rps",
+        "hpa_label": "hpa1",
+        "hpa_file": "deathstar-bench/hpa/default_hpa.yaml",
+        "metrics": {
+          "p50_ms": 452.345,
+          "p90_ms": 956.008,
+          "p95_ms": 1073.757,
+          "p99_ms": 1442.04,
+          "fail_pct": 5.293,
+          "rps": 28.006
+        }
+      }
+    ],
+    "aggregate": {
+      "p50_ms": 754.218,
+      "p90_ms": 1432.953,
+      "p95_ms": 1580.979,
+      "p99_ms": 1914.098,
+      "fail_pct": 7.972,
+      "rps": 28.169
+    }
+  },
+  "hpa2": {
+    "label": "Context-Aware HPA",
+    "n_runs": 40,
+    "runs": [
+      {
+        "run_dir": "/home/dlamagna/projects/autoscaling-kubernetes/k6/grafana/2026-03-14/dual_test_30rps_hpa2_115549Z",
+        "k6": {
+          "load_mode": "rps",
+          "rps": 30,
+          "duration": "11m",
+          "vus": 50,
+          "timeout": "5s"
+        },
+        "hpa": {
+          "compose-post-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50
+          },
+          "text-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50,
+            "parent_metric": "text_service_parent_cpu_utilization_pct",
+            "parent_target_type": "AverageValue",
+            "parent_target_value": "50"
+          },
+          "user-mention-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50,
+            "parent_metric": "user_mention_parent_cpu_utilization_pct",
+            "parent_target_type": "AverageValue",
+            "parent_target_value": "50"
+          }
+        },
+        "services": {
+          "compose-post-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "text-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "user-mention-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "nginx-thrift": {
+            "cpu_request": "300m",
+            "memory_request": null
+          }
+        },
+        "date": "2026-03-14 12:09:43 UTC",
+        "test_name": "dual_test_30rps",
+        "hpa_label": "hpa2",
+        "hpa_file": "deathstar-bench/hpa/context_aware_hpa_dual_metric.yaml",
+        "metrics": {
+          "p50_ms": 749.583,
+          "p90_ms": 1790.747,
+          "p95_ms": 1897.82,
+          "p99_ms": 2033.388,
+          "fail_pct": 6.621,
+          "rps": 28.298
+        }
+      },
+      {
+        "run_dir": "/home/dlamagna/projects/autoscaling-kubernetes/k6/grafana/2026-03-14/dual_test_30rps_hpa2_130243Z",
+        "k6": {
+          "load_mode": "rps",
+          "rps": 30,
+          "duration": "11m",
+          "vus": 50,
+          "timeout": "5s"
+        },
+        "hpa": {
+          "compose-post-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50
+          },
+          "text-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50,
+            "parent_metric": "text_service_parent_cpu_utilization_pct",
+            "parent_target_type": "AverageValue",
+            "parent_target_value": "50"
+          },
+          "user-mention-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50,
+            "parent_metric": "user_mention_parent_cpu_utilization_pct",
+            "parent_target_type": "AverageValue",
+            "parent_target_value": "50"
+          }
+        },
+        "services": {
+          "compose-post-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "text-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "user-mention-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "nginx-thrift": {
+            "cpu_request": "300m",
+            "memory_request": null
+          }
+        },
+        "date": "2026-03-14 13:16:39 UTC",
+        "test_name": "dual_test_30rps",
+        "hpa_label": "hpa2",
+        "hpa_file": "deathstar-bench/hpa/context_aware_hpa_dual_metric.yaml",
+        "metrics": {
+          "p50_ms": 520.871,
+          "p90_ms": 1258.624,
+          "p95_ms": 1403.257,
+          "p99_ms": 1712.593,
+          "fail_pct": 5.975,
+          "rps": 27.944
+        }
+      },
+      {
+        "run_dir": "/home/dlamagna/projects/autoscaling-kubernetes/k6/grafana/2026-03-14/dual_test_30rps_hpa2_140952Z",
+        "k6": {
+          "load_mode": "rps",
+          "rps": 30,
+          "duration": "11m",
+          "vus": 50,
+          "timeout": "5s"
+        },
+        "hpa": {
+          "compose-post-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50
+          },
+          "text-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50,
+            "parent_metric": "text_service_parent_cpu_utilization_pct",
+            "parent_target_type": "AverageValue",
+            "parent_target_value": "50"
+          },
+          "user-mention-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50,
+            "parent_metric": "user_mention_parent_cpu_utilization_pct",
+            "parent_target_type": "AverageValue",
+            "parent_target_value": "50"
+          }
+        },
+        "services": {
+          "compose-post-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "text-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "user-mention-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "nginx-thrift": {
+            "cpu_request": "300m",
+            "memory_request": null
+          }
+        },
+        "date": "2026-03-14 14:23:50 UTC",
+        "test_name": "dual_test_30rps",
+        "hpa_label": "hpa2",
+        "hpa_file": "deathstar-bench/hpa/context_aware_hpa_dual_metric.yaml",
+        "metrics": {
+          "p50_ms": 753.228,
+          "p90_ms": 1546.113,
+          "p95_ms": 1661.73,
+          "p99_ms": 2062.982,
+          "fail_pct": 8.16,
+          "rps": 27.918
+        }
+      },
+      {
+        "run_dir": "/home/dlamagna/projects/autoscaling-kubernetes/k6/grafana/2026-03-14/dual_test_30rps_hpa2_152330Z",
+        "k6": {
+          "load_mode": "rps",
+          "rps": 30,
+          "duration": "11m",
+          "vus": 50,
+          "timeout": "5s"
+        },
+        "hpa": {
+          "compose-post-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50
+          },
+          "text-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50,
+            "parent_metric": "text_service_parent_cpu_utilization_pct",
+            "parent_target_type": "AverageValue",
+            "parent_target_value": "50"
+          },
+          "user-mention-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50,
+            "parent_metric": "user_mention_parent_cpu_utilization_pct",
+            "parent_target_type": "AverageValue",
+            "parent_target_value": "50"
+          }
+        },
+        "services": {
+          "compose-post-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "text-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "user-mention-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "nginx-thrift": {
+            "cpu_request": "300m",
+            "memory_request": null
+          }
+        },
+        "date": "2026-03-14 15:37:30 UTC",
+        "test_name": "dual_test_30rps",
+        "hpa_label": "hpa2",
+        "hpa_file": "deathstar-bench/hpa/context_aware_hpa_dual_metric.yaml",
+        "metrics": {
+          "p50_ms": 447.654,
+          "p90_ms": 1103.374,
+          "p95_ms": 1203.444,
+          "p99_ms": 1605.489,
+          "fail_pct": 5.188,
+          "rps": 27.896
+        }
+      },
+      {
+        "run_dir": "/home/dlamagna/projects/autoscaling-kubernetes/k6/grafana/2026-03-14/dual_test_30rps_hpa2_162943Z",
+        "k6": {
+          "load_mode": "rps",
+          "rps": 30,
+          "duration": "11m",
+          "vus": 50,
+          "timeout": "5s"
+        },
+        "hpa": {
+          "compose-post-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50
+          },
+          "text-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50,
+            "parent_metric": "text_service_parent_cpu_utilization_pct",
+            "parent_target_type": "AverageValue",
+            "parent_target_value": "50"
+          },
+          "user-mention-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50,
+            "parent_metric": "user_mention_parent_cpu_utilization_pct",
+            "parent_target_type": "AverageValue",
+            "parent_target_value": "50"
+          }
+        },
+        "services": {
+          "compose-post-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "text-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "user-mention-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "nginx-thrift": {
+            "cpu_request": "300m",
+            "memory_request": null
+          }
+        },
+        "date": "2026-03-14 16:43:37 UTC",
+        "test_name": "dual_test_30rps",
+        "hpa_label": "hpa2",
+        "hpa_file": "deathstar-bench/hpa/context_aware_hpa_dual_metric.yaml",
+        "metrics": {
+          "p50_ms": 708.549,
+          "p90_ms": 1288.952,
+          "p95_ms": 1416.535,
+          "p99_ms": 1652.629,
+          "fail_pct": 8.077,
+          "rps": 28.088
+        }
+      },
+      {
+        "run_dir": "/home/dlamagna/projects/autoscaling-kubernetes/k6/grafana/2026-03-14/dual_test_30rps_hpa2_173604Z",
+        "k6": {
+          "load_mode": "rps",
+          "rps": 30,
+          "duration": "11m",
+          "vus": 50,
+          "timeout": "5s"
+        },
+        "hpa": {
+          "compose-post-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50
+          },
+          "text-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50,
+            "parent_metric": "text_service_parent_cpu_utilization_pct",
+            "parent_target_type": "AverageValue",
+            "parent_target_value": "50"
+          },
+          "user-mention-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50,
+            "parent_metric": "user_mention_parent_cpu_utilization_pct",
+            "parent_target_type": "AverageValue",
+            "parent_target_value": "50"
+          }
+        },
+        "services": {
+          "compose-post-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "text-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "user-mention-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "nginx-thrift": {
+            "cpu_request": "300m",
+            "memory_request": null
+          }
+        },
+        "date": "2026-03-14 17:49:59 UTC",
+        "test_name": "dual_test_30rps",
+        "hpa_label": "hpa2",
+        "hpa_file": "deathstar-bench/hpa/context_aware_hpa_dual_metric.yaml",
+        "metrics": {
+          "p50_ms": 621.93,
+          "p90_ms": 1306.347,
+          "p95_ms": 1456.015,
+          "p99_ms": 1732.616,
+          "fail_pct": 6.127,
+          "rps": 27.936
+        }
+      },
+      {
+        "run_dir": "/home/dlamagna/projects/autoscaling-kubernetes/k6/grafana/2026-03-14/dual_test_30rps_hpa2_184301Z",
+        "k6": {
+          "load_mode": "rps",
+          "rps": 30,
+          "duration": "11m",
+          "vus": 50,
+          "timeout": "5s"
+        },
+        "hpa": {
+          "compose-post-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50
+          },
+          "text-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50,
+            "parent_metric": "text_service_parent_cpu_utilization_pct",
+            "parent_target_type": "AverageValue",
+            "parent_target_value": "50"
+          },
+          "user-mention-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50,
+            "parent_metric": "user_mention_parent_cpu_utilization_pct",
+            "parent_target_type": "AverageValue",
+            "parent_target_value": "50"
+          }
+        },
+        "services": {
+          "compose-post-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "text-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "user-mention-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "nginx-thrift": {
+            "cpu_request": "300m",
+            "memory_request": null
+          }
+        },
+        "date": "2026-03-14 18:56:57 UTC",
+        "test_name": "dual_test_30rps",
+        "hpa_label": "hpa2",
+        "hpa_file": "deathstar-bench/hpa/context_aware_hpa_dual_metric.yaml",
+        "metrics": {
+          "p50_ms": 955.262,
+          "p90_ms": 1836.014,
+          "p95_ms": 2109.158,
+          "p99_ms": 2575.146,
+          "fail_pct": 9.101,
+          "rps": 28.044
+        }
+      },
+      {
+        "run_dir": "/home/dlamagna/projects/autoscaling-kubernetes/k6/grafana/2026-03-14/dual_test_30rps_hpa2_195033Z",
+        "k6": {
+          "load_mode": "rps",
+          "rps": 30,
+          "duration": "11m",
+          "vus": 50,
+          "timeout": "5s"
+        },
+        "hpa": {
+          "compose-post-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50
+          },
+          "text-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50,
+            "parent_metric": "text_service_parent_cpu_utilization_pct",
+            "parent_target_type": "AverageValue",
+            "parent_target_value": "50"
+          },
+          "user-mention-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50,
+            "parent_metric": "user_mention_parent_cpu_utilization_pct",
+            "parent_target_type": "AverageValue",
+            "parent_target_value": "50"
+          }
+        },
+        "services": {
+          "compose-post-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "text-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "user-mention-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "nginx-thrift": {
+            "cpu_request": "300m",
+            "memory_request": null
+          }
+        },
+        "date": "2026-03-14 20:04:33 UTC",
+        "test_name": "dual_test_30rps",
+        "hpa_label": "hpa2",
+        "hpa_file": "deathstar-bench/hpa/context_aware_hpa_dual_metric.yaml",
+        "metrics": {
+          "p50_ms": 440.498,
+          "p90_ms": 1176.016,
+          "p95_ms": 1286.596,
+          "p99_ms": 1612.033,
+          "fail_pct": 3.874,
+          "rps": 28.322
+        }
+      },
+      {
+        "run_dir": "/home/dlamagna/projects/autoscaling-kubernetes/k6/grafana/2026-03-14/dual_test_30rps_hpa2_213625Z",
+        "k6": {
+          "load_mode": "rps",
+          "rps": 30,
+          "duration": "11m",
+          "vus": 50,
+          "timeout": "5s"
+        },
+        "hpa": {
+          "compose-post-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50
+          },
+          "text-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50,
+            "parent_metric": "text_service_parent_cpu_utilization_pct",
+            "parent_target_type": "AverageValue",
+            "parent_target_value": "50"
+          },
+          "user-mention-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50,
+            "parent_metric": "user_mention_parent_cpu_utilization_pct",
+            "parent_target_type": "AverageValue",
+            "parent_target_value": "50"
+          }
+        },
+        "services": {
+          "compose-post-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "text-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "user-mention-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "nginx-thrift": {
+            "cpu_request": "300m",
+            "memory_request": null
+          }
+        },
+        "date": "2026-03-14 21:50:24 UTC",
+        "test_name": "dual_test_30rps",
+        "hpa_label": "hpa2",
+        "hpa_file": "deathstar-bench/hpa/context_aware_hpa_dual_metric.yaml",
+        "metrics": {
+          "p50_ms": 386.04,
+          "p90_ms": 1128.543,
+          "p95_ms": 1261.005,
+          "p99_ms": 1588.965,
+          "fail_pct": 4.406,
+          "rps": 28.364
+        }
+      },
+      {
+        "run_dir": "/home/dlamagna/projects/autoscaling-kubernetes/k6/grafana/2026-03-14/dual_test_30rps_hpa2_224333Z",
+        "k6": {
+          "load_mode": "rps",
+          "rps": 30,
+          "duration": "11m",
+          "vus": 50,
+          "timeout": "5s"
+        },
+        "hpa": {
+          "compose-post-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50
+          },
+          "text-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50,
+            "parent_metric": "text_service_parent_cpu_utilization_pct",
+            "parent_target_type": "AverageValue",
+            "parent_target_value": "50"
+          },
+          "user-mention-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50,
+            "parent_metric": "user_mention_parent_cpu_utilization_pct",
+            "parent_target_type": "AverageValue",
+            "parent_target_value": "50"
+          }
+        },
+        "services": {
+          "compose-post-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "text-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "user-mention-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "nginx-thrift": {
+            "cpu_request": "300m",
+            "memory_request": null
+          }
+        },
+        "date": "2026-03-14 22:57:31 UTC",
+        "test_name": "dual_test_30rps",
+        "hpa_label": "hpa2",
+        "hpa_file": "deathstar-bench/hpa/context_aware_hpa_dual_metric.yaml",
+        "metrics": {
+          "p50_ms": 664.377,
+          "p90_ms": 1417.735,
+          "p95_ms": 1562.707,
+          "p99_ms": 1781.497,
+          "fail_pct": 7.652,
+          "rps": 28.46
+        }
+      },
+      {
+        "run_dir": "/home/dlamagna/projects/autoscaling-kubernetes/k6/grafana/2026-03-14/dual_test_30rps_hpa2_235214Z",
+        "k6": {
+          "load_mode": "rps",
+          "rps": 30,
+          "duration": "11m",
+          "vus": 50,
+          "timeout": "5s"
+        },
+        "hpa": {
+          "compose-post-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50
+          },
+          "text-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50,
+            "parent_metric": "text_service_parent_cpu_utilization_pct",
+            "parent_target_type": "AverageValue",
+            "parent_target_value": "50"
+          },
+          "user-mention-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50,
+            "parent_metric": "user_mention_parent_cpu_utilization_pct",
+            "parent_target_type": "AverageValue",
+            "parent_target_value": "50"
+          }
+        },
+        "services": {
+          "compose-post-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "text-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "user-mention-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "nginx-thrift": {
+            "cpu_request": "300m",
+            "memory_request": null
+          }
+        },
+        "date": "2026-03-15 00:06:10 UTC",
+        "test_name": "dual_test_30rps",
+        "hpa_label": "hpa2",
+        "hpa_file": "deathstar-bench/hpa/context_aware_hpa_dual_metric.yaml",
+        "metrics": {
+          "p50_ms": 689.859,
+          "p90_ms": 1720.165,
+          "p95_ms": 1899.729,
+          "p99_ms": 2318.024,
+          "fail_pct": 7.743,
+          "rps": 28.466
+        }
+      },
+      {
+        "run_dir": "/home/dlamagna/projects/autoscaling-kubernetes/k6/grafana/2026-03-15/dual_test_30rps_hpa2_005901Z",
+        "k6": {
+          "load_mode": "rps",
+          "rps": 30,
+          "duration": "11m",
+          "vus": 50,
+          "timeout": "5s"
+        },
+        "hpa": {
+          "compose-post-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50
+          },
+          "text-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50,
+            "parent_metric": "text_service_parent_cpu_utilization_pct",
+            "parent_target_type": "AverageValue",
+            "parent_target_value": "50"
+          },
+          "user-mention-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50,
+            "parent_metric": "user_mention_parent_cpu_utilization_pct",
+            "parent_target_type": "AverageValue",
+            "parent_target_value": "50"
+          }
+        },
+        "services": {
+          "compose-post-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "text-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "user-mention-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "nginx-thrift": {
+            "cpu_request": "300m",
+            "memory_request": null
+          }
+        },
+        "date": "2026-03-15 01:13:01 UTC",
+        "test_name": "dual_test_30rps",
+        "hpa_label": "hpa2",
+        "hpa_file": "deathstar-bench/hpa/context_aware_hpa_dual_metric.yaml",
+        "metrics": {
+          "p50_ms": 666.189,
+          "p90_ms": 1287.732,
+          "p95_ms": 1424.836,
+          "p99_ms": 1785.43,
+          "fail_pct": 7.22,
+          "rps": 28.016
+        }
+      },
+      {
+        "run_dir": "/home/dlamagna/projects/autoscaling-kubernetes/k6/grafana/2026-03-15/dual_test_30rps_hpa2_020634Z",
+        "k6": {
+          "load_mode": "rps",
+          "rps": 30,
+          "duration": "11m",
+          "vus": 50,
+          "timeout": "5s"
+        },
+        "hpa": {
+          "compose-post-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50
+          },
+          "text-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50,
+            "parent_metric": "text_service_parent_cpu_utilization_pct",
+            "parent_target_type": "AverageValue",
+            "parent_target_value": "50"
+          },
+          "user-mention-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50,
+            "parent_metric": "user_mention_parent_cpu_utilization_pct",
+            "parent_target_type": "AverageValue",
+            "parent_target_value": "50"
+          }
+        },
+        "services": {
+          "compose-post-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "text-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "user-mention-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "nginx-thrift": {
+            "cpu_request": "300m",
+            "memory_request": null
+          }
+        },
+        "date": "2026-03-15 02:20:30 UTC",
+        "test_name": "dual_test_30rps",
+        "hpa_label": "hpa2",
+        "hpa_file": "deathstar-bench/hpa/context_aware_hpa_dual_metric.yaml",
+        "metrics": {
+          "p50_ms": 492.537,
+          "p90_ms": 1183.245,
+          "p95_ms": 1309.934,
+          "p99_ms": 1549.198,
+          "fail_pct": 5.796,
+          "rps": 28.464
+        }
+      },
+      {
+        "run_dir": "/home/dlamagna/projects/autoscaling-kubernetes/k6/grafana/2026-03-15/dual_test_30rps_hpa2_031321Z",
+        "k6": {
+          "load_mode": "rps",
+          "rps": 30,
+          "duration": "11m",
+          "vus": 50,
+          "timeout": "5s"
+        },
+        "hpa": {
+          "compose-post-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50
+          },
+          "text-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50,
+            "parent_metric": "text_service_parent_cpu_utilization_pct",
+            "parent_target_type": "AverageValue",
+            "parent_target_value": "50"
+          },
+          "user-mention-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50,
+            "parent_metric": "user_mention_parent_cpu_utilization_pct",
+            "parent_target_type": "AverageValue",
+            "parent_target_value": "50"
+          }
+        },
+        "services": {
+          "compose-post-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "text-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "user-mention-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "nginx-thrift": {
+            "cpu_request": "300m",
+            "memory_request": null
+          }
+        },
+        "date": "2026-03-15 03:27:23 UTC",
+        "test_name": "dual_test_30rps",
+        "hpa_label": "hpa2",
+        "hpa_file": "deathstar-bench/hpa/context_aware_hpa_dual_metric.yaml",
+        "metrics": {
+          "p50_ms": 407.351,
+          "p90_ms": 840.312,
+          "p95_ms": 926.254,
+          "p99_ms": 1243.44,
+          "fail_pct": 4.401,
+          "rps": 28.308
+        }
+      },
+      {
+        "run_dir": "/home/dlamagna/projects/autoscaling-kubernetes/k6/grafana/2026-03-15/dual_test_30rps_hpa2_042000Z",
+        "k6": {
+          "load_mode": "rps",
+          "rps": 30,
+          "duration": "11m",
+          "vus": 50,
+          "timeout": "5s"
+        },
+        "hpa": {
+          "compose-post-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50
+          },
+          "text-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50,
+            "parent_metric": "text_service_parent_cpu_utilization_pct",
+            "parent_target_type": "AverageValue",
+            "parent_target_value": "50"
+          },
+          "user-mention-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50,
+            "parent_metric": "user_mention_parent_cpu_utilization_pct",
+            "parent_target_type": "AverageValue",
+            "parent_target_value": "50"
+          }
+        },
+        "services": {
+          "compose-post-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "text-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "user-mention-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "nginx-thrift": {
+            "cpu_request": "300m",
+            "memory_request": null
+          }
+        },
+        "date": "2026-03-15 04:33:59 UTC",
+        "test_name": "dual_test_30rps",
+        "hpa_label": "hpa2",
+        "hpa_file": "deathstar-bench/hpa/context_aware_hpa_dual_metric.yaml",
+        "metrics": {
+          "p50_ms": 671.719,
+          "p90_ms": 1393.859,
+          "p95_ms": 1571.951,
+          "p99_ms": 1912.648,
+          "fail_pct": 7.733,
+          "rps": 28.106
+        }
+      },
+      {
+        "run_dir": "/home/dlamagna/projects/autoscaling-kubernetes/k6/grafana/2026-03-15/dual_test_30rps_hpa2_055250Z",
+        "k6": {
+          "load_mode": "rps",
+          "rps": 30,
+          "duration": "11m",
+          "vus": 50,
+          "timeout": "5s"
+        },
+        "hpa": {
+          "compose-post-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50
+          },
+          "text-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50,
+            "parent_metric": "text_service_parent_cpu_utilization_pct",
+            "parent_target_type": "AverageValue",
+            "parent_target_value": "50"
+          },
+          "user-mention-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50,
+            "parent_metric": "user_mention_parent_cpu_utilization_pct",
+            "parent_target_type": "AverageValue",
+            "parent_target_value": "50"
+          }
+        },
+        "services": {
+          "compose-post-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "text-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "user-mention-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "nginx-thrift": {
+            "cpu_request": "300m",
+            "memory_request": null
+          }
+        },
+        "date": "2026-03-15 06:06:47 UTC",
+        "test_name": "dual_test_30rps",
+        "hpa_label": "hpa2",
+        "hpa_file": "deathstar-bench/hpa/context_aware_hpa_dual_metric.yaml",
+        "metrics": {
+          "p50_ms": 797.836,
+          "p90_ms": 1860.472,
+          "p95_ms": 2116.951,
+          "p99_ms": 2582.227,
+          "fail_pct": 6.388,
+          "rps": 28.046
+        }
+      },
+      {
+        "run_dir": "/home/dlamagna/projects/autoscaling-kubernetes/k6/grafana/2026-03-15/dual_test_30rps_hpa2_065907Z",
+        "k6": {
+          "load_mode": "rps",
+          "rps": 30,
+          "duration": "11m",
+          "vus": 50,
+          "timeout": "5s"
+        },
+        "hpa": {
+          "compose-post-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50
+          },
+          "text-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50,
+            "parent_metric": "text_service_parent_cpu_utilization_pct",
+            "parent_target_type": "AverageValue",
+            "parent_target_value": "50"
+          },
+          "user-mention-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50,
+            "parent_metric": "user_mention_parent_cpu_utilization_pct",
+            "parent_target_type": "AverageValue",
+            "parent_target_value": "50"
+          }
+        },
+        "services": {
+          "compose-post-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "text-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "user-mention-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "nginx-thrift": {
+            "cpu_request": "300m",
+            "memory_request": null
+          }
+        },
+        "date": "2026-03-15 07:13:04 UTC",
+        "test_name": "dual_test_30rps",
+        "hpa_label": "hpa2",
+        "hpa_file": "deathstar-bench/hpa/context_aware_hpa_dual_metric.yaml",
+        "metrics": {
+          "p50_ms": 300.893,
+          "p90_ms": 873.25,
+          "p95_ms": 1018.931,
+          "p99_ms": 1280.817,
+          "fail_pct": 3.398,
+          "rps": 28.276
+        }
+      },
+      {
+        "run_dir": "/home/dlamagna/projects/autoscaling-kubernetes/k6/grafana/2026-03-15/dual_test_30rps_hpa2_080554Z",
+        "k6": {
+          "load_mode": "rps",
+          "rps": 30,
+          "duration": "11m",
+          "vus": 50,
+          "timeout": "5s"
+        },
+        "hpa": {
+          "compose-post-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50
+          },
+          "text-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50,
+            "parent_metric": "text_service_parent_cpu_utilization_pct",
+            "parent_target_type": "AverageValue",
+            "parent_target_value": "50"
+          },
+          "user-mention-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50,
+            "parent_metric": "user_mention_parent_cpu_utilization_pct",
+            "parent_target_type": "AverageValue",
+            "parent_target_value": "50"
+          }
+        },
+        "services": {
+          "compose-post-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "text-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "user-mention-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "nginx-thrift": {
+            "cpu_request": "300m",
+            "memory_request": null
+          }
+        },
+        "date": "2026-03-15 08:19:51 UTC",
+        "test_name": "dual_test_30rps",
+        "hpa_label": "hpa2",
+        "hpa_file": "deathstar-bench/hpa/context_aware_hpa_dual_metric.yaml",
+        "metrics": {
+          "p50_ms": 350.964,
+          "p90_ms": 858.731,
+          "p95_ms": 975.109,
+          "p99_ms": 1220.82,
+          "fail_pct": 4.44,
+          "rps": 28.41
+        }
+      },
+      {
+        "run_dir": "/home/dlamagna/projects/autoscaling-kubernetes/k6/grafana/2026-03-15/dual_test_30rps_hpa2_091309Z",
+        "k6": {
+          "load_mode": "rps",
+          "rps": 30,
+          "duration": "11m",
+          "vus": 50,
+          "timeout": "5s"
+        },
+        "hpa": {
+          "compose-post-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50
+          },
+          "text-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50,
+            "parent_metric": "text_service_parent_cpu_utilization_pct",
+            "parent_target_type": "AverageValue",
+            "parent_target_value": "50"
+          },
+          "user-mention-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50,
+            "parent_metric": "user_mention_parent_cpu_utilization_pct",
+            "parent_target_type": "AverageValue",
+            "parent_target_value": "50"
+          }
+        },
+        "services": {
+          "compose-post-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "text-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "user-mention-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "nginx-thrift": {
+            "cpu_request": "300m",
+            "memory_request": null
+          }
+        },
+        "date": "2026-03-15 09:27:07 UTC",
+        "test_name": "dual_test_30rps",
+        "hpa_label": "hpa2",
+        "hpa_file": "deathstar-bench/hpa/context_aware_hpa_dual_metric.yaml",
+        "metrics": {
+          "p50_ms": 552.46,
+          "p90_ms": 1144.79,
+          "p95_ms": 1333.997,
+          "p99_ms": 1601.931,
+          "fail_pct": 5.882,
+          "rps": 28.07
+        }
+      },
+      {
+        "run_dir": "/home/dlamagna/projects/autoscaling-kubernetes/k6/grafana/2026-03-15/dual_test_30rps_hpa2_102008Z",
+        "k6": {
+          "load_mode": "rps",
+          "rps": 30,
+          "duration": "11m",
+          "vus": 50,
+          "timeout": "5s"
+        },
+        "hpa": {
+          "compose-post-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50
+          },
+          "text-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50,
+            "parent_metric": "text_service_parent_cpu_utilization_pct",
+            "parent_target_type": "AverageValue",
+            "parent_target_value": "50"
+          },
+          "user-mention-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50,
+            "parent_metric": "user_mention_parent_cpu_utilization_pct",
+            "parent_target_type": "AverageValue",
+            "parent_target_value": "50"
+          }
+        },
+        "services": {
+          "compose-post-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "text-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "user-mention-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "nginx-thrift": {
+            "cpu_request": "300m",
+            "memory_request": null
+          }
+        },
+        "date": "2026-03-15 10:34:08 UTC",
+        "test_name": "dual_test_30rps",
+        "hpa_label": "hpa2",
+        "hpa_file": "deathstar-bench/hpa/context_aware_hpa_dual_metric.yaml",
+        "metrics": {
+          "p50_ms": 545.567,
+          "p90_ms": 1282.236,
+          "p95_ms": 1418.502,
+          "p99_ms": 1714.649,
+          "fail_pct": 6.073,
+          "rps": 28.194
+        }
+      },
+      {
+        "run_dir": "/home/dlamagna/projects/autoscaling-kubernetes/k6/grafana/2026-03-15/dual_test_30rps_hpa2_112725Z",
+        "k6": {
+          "load_mode": "rps",
+          "rps": 30,
+          "duration": "11m",
+          "vus": 50,
+          "timeout": "5s"
+        },
+        "hpa": {
+          "compose-post-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50
+          },
+          "text-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50,
+            "parent_metric": "text_service_parent_cpu_utilization_pct",
+            "parent_target_type": "AverageValue",
+            "parent_target_value": "50"
+          },
+          "user-mention-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50,
+            "parent_metric": "user_mention_parent_cpu_utilization_pct",
+            "parent_target_type": "AverageValue",
+            "parent_target_value": "50"
+          }
+        },
+        "services": {
+          "compose-post-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "text-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "user-mention-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "nginx-thrift": {
+            "cpu_request": "300m",
+            "memory_request": null
+          }
+        },
+        "date": "2026-03-15 11:41:23 UTC",
+        "test_name": "dual_test_30rps",
+        "hpa_label": "hpa2",
+        "hpa_file": "deathstar-bench/hpa/context_aware_hpa_dual_metric.yaml",
+        "metrics": {
+          "p50_ms": 517.623,
+          "p90_ms": 1664.539,
+          "p95_ms": 1901.927,
+          "p99_ms": 2307.875,
+          "fail_pct": 5.863,
+          "rps": 28.33
+        }
+      },
+      {
+        "run_dir": "/home/dlamagna/projects/autoscaling-kubernetes/k6/grafana/2026-03-15/dual_test_30rps_hpa2_123444Z",
+        "k6": {
+          "load_mode": "rps",
+          "rps": 30,
+          "duration": "11m",
+          "vus": 50,
+          "timeout": "5s"
+        },
+        "hpa": {
+          "compose-post-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50
+          },
+          "text-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50,
+            "parent_metric": "text_service_parent_cpu_utilization_pct",
+            "parent_target_type": "AverageValue",
+            "parent_target_value": "50"
+          },
+          "user-mention-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50,
+            "parent_metric": "user_mention_parent_cpu_utilization_pct",
+            "parent_target_type": "AverageValue",
+            "parent_target_value": "50"
+          }
+        },
+        "services": {
+          "compose-post-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "text-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "user-mention-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "nginx-thrift": {
+            "cpu_request": "300m",
+            "memory_request": null
+          }
+        },
+        "date": "2026-03-15 12:48:48 UTC",
+        "test_name": "dual_test_30rps",
+        "hpa_label": "hpa2",
+        "hpa_file": "deathstar-bench/hpa/context_aware_hpa_dual_metric.yaml",
+        "metrics": {
+          "p50_ms": 463.731,
+          "p90_ms": 928.473,
+          "p95_ms": 1044.095,
+          "p99_ms": 1347.905,
+          "fail_pct": 5.097,
+          "rps": 28.184
+        }
+      },
+      {
+        "run_dir": "/home/dlamagna/projects/autoscaling-kubernetes/k6/grafana/2026-03-15/dual_test_30rps_hpa2_143458Z",
+        "k6": {
+          "load_mode": "rps",
+          "rps": 30,
+          "duration": "11m",
+          "vus": 50,
+          "timeout": "5s"
+        },
+        "hpa": {
+          "compose-post-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50
+          },
+          "text-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50,
+            "parent_metric": "text_service_parent_cpu_utilization_pct",
+            "parent_target_type": "AverageValue",
+            "parent_target_value": "50"
+          },
+          "user-mention-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50,
+            "parent_metric": "user_mention_parent_cpu_utilization_pct",
+            "parent_target_type": "AverageValue",
+            "parent_target_value": "50"
+          }
+        },
+        "services": {
+          "compose-post-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "text-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "user-mention-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "nginx-thrift": {
+            "cpu_request": "300m",
+            "memory_request": null
+          }
+        },
+        "date": "2026-03-15 14:48:53 UTC",
+        "test_name": "dual_test_30rps",
+        "hpa_label": "hpa2",
+        "hpa_file": "deathstar-bench/hpa/context_aware_hpa_dual_metric.yaml",
+        "metrics": {
+          "p50_ms": 785.047,
+          "p90_ms": 1661.805,
+          "p95_ms": 1759.847,
+          "p99_ms": 2062.272,
+          "fail_pct": 8.655,
+          "rps": 28.346
+        }
+      },
+      {
+        "run_dir": "/home/dlamagna/projects/autoscaling-kubernetes/k6/grafana/2026-03-15/dual_test_30rps_hpa2_154120Z",
+        "k6": {
+          "load_mode": "rps",
+          "rps": 30,
+          "duration": "11m",
+          "vus": 50,
+          "timeout": "5s"
+        },
+        "hpa": {
+          "compose-post-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50
+          },
+          "text-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50,
+            "parent_metric": "text_service_parent_cpu_utilization_pct",
+            "parent_target_type": "AverageValue",
+            "parent_target_value": "50"
+          },
+          "user-mention-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50,
+            "parent_metric": "user_mention_parent_cpu_utilization_pct",
+            "parent_target_type": "AverageValue",
+            "parent_target_value": "50"
+          }
+        },
+        "services": {
+          "compose-post-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "text-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "user-mention-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "nginx-thrift": {
+            "cpu_request": "300m",
+            "memory_request": null
+          }
+        },
+        "date": "2026-03-15 15:55:16 UTC",
+        "test_name": "dual_test_30rps",
+        "hpa_label": "hpa2",
+        "hpa_file": "deathstar-bench/hpa/context_aware_hpa_dual_metric.yaml",
+        "metrics": {
+          "p50_ms": 506.804,
+          "p90_ms": 1000.268,
+          "p95_ms": 1108.27,
+          "p99_ms": 1412.449,
+          "fail_pct": 6.015,
+          "rps": 28.108
+        }
+      },
+      {
+        "run_dir": "/home/dlamagna/projects/autoscaling-kubernetes/k6/grafana/2026-03-15/dual_test_30rps_hpa2_164753Z",
+        "k6": {
+          "load_mode": "rps",
+          "rps": 30,
+          "duration": "11m",
+          "vus": 50,
+          "timeout": "5s"
+        },
+        "hpa": {
+          "compose-post-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50
+          },
+          "text-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50,
+            "parent_metric": "text_service_parent_cpu_utilization_pct",
+            "parent_target_type": "AverageValue",
+            "parent_target_value": "50"
+          },
+          "user-mention-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50,
+            "parent_metric": "user_mention_parent_cpu_utilization_pct",
+            "parent_target_type": "AverageValue",
+            "parent_target_value": "50"
+          }
+        },
+        "services": {
+          "compose-post-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "text-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "user-mention-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "nginx-thrift": {
+            "cpu_request": "300m",
+            "memory_request": null
+          }
+        },
+        "date": "2026-03-15 17:01:49 UTC",
+        "test_name": "dual_test_30rps",
+        "hpa_label": "hpa2",
+        "hpa_file": "deathstar-bench/hpa/context_aware_hpa_dual_metric.yaml",
+        "metrics": {
+          "p50_ms": 840.879,
+          "p90_ms": 2350.099,
+          "p95_ms": 2672.515,
+          "p99_ms": 3135.12,
+          "fail_pct": 7.031,
+          "rps": 27.94
+        }
+      },
+      {
+        "run_dir": "/home/dlamagna/projects/autoscaling-kubernetes/k6/grafana/2026-03-15/dual_test_30rps_hpa2_175410Z",
+        "k6": {
+          "load_mode": "rps",
+          "rps": 30,
+          "duration": "11m",
+          "vus": 50,
+          "timeout": "5s"
+        },
+        "hpa": {
+          "compose-post-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50
+          },
+          "text-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50,
+            "parent_metric": "text_service_parent_cpu_utilization_pct",
+            "parent_target_type": "AverageValue",
+            "parent_target_value": "50"
+          },
+          "user-mention-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50,
+            "parent_metric": "user_mention_parent_cpu_utilization_pct",
+            "parent_target_type": "AverageValue",
+            "parent_target_value": "50"
+          }
+        },
+        "services": {
+          "compose-post-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "text-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "user-mention-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "nginx-thrift": {
+            "cpu_request": "300m",
+            "memory_request": null
+          }
+        },
+        "date": "2026-03-15 18:08:07 UTC",
+        "test_name": "dual_test_30rps",
+        "hpa_label": "hpa2",
+        "hpa_file": "deathstar-bench/hpa/context_aware_hpa_dual_metric.yaml",
+        "metrics": {
+          "p50_ms": 612.871,
+          "p90_ms": 1095.055,
+          "p95_ms": 1194.69,
+          "p99_ms": 1482.655,
+          "fail_pct": 7.147,
+          "rps": 28.058
+        }
+      },
+      {
+        "run_dir": "/home/dlamagna/projects/autoscaling-kubernetes/k6/grafana/2026-03-15/dual_test_30rps_hpa2_190020Z",
+        "k6": {
+          "load_mode": "rps",
+          "rps": 30,
+          "duration": "11m",
+          "vus": 50,
+          "timeout": "5s"
+        },
+        "hpa": {
+          "compose-post-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50
+          },
+          "text-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50,
+            "parent_metric": "text_service_parent_cpu_utilization_pct",
+            "parent_target_type": "AverageValue",
+            "parent_target_value": "50"
+          },
+          "user-mention-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50,
+            "parent_metric": "user_mention_parent_cpu_utilization_pct",
+            "parent_target_type": "AverageValue",
+            "parent_target_value": "50"
+          }
+        },
+        "services": {
+          "compose-post-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "text-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "user-mention-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "nginx-thrift": {
+            "cpu_request": "300m",
+            "memory_request": null
+          }
+        },
+        "date": "2026-03-15 19:14:17 UTC",
+        "test_name": "dual_test_30rps",
+        "hpa_label": "hpa2",
+        "hpa_file": "deathstar-bench/hpa/context_aware_hpa_dual_metric.yaml",
+        "metrics": {
+          "p50_ms": 555.053,
+          "p90_ms": 1062.627,
+          "p95_ms": 1173.932,
+          "p99_ms": 1589.077,
+          "fail_pct": 6.439,
+          "rps": 28.09
+        }
+      },
+      {
+        "run_dir": "/home/dlamagna/projects/autoscaling-kubernetes/k6/grafana/2026-03-15/dual_test_30rps_hpa2_200705Z",
+        "k6": {
+          "load_mode": "rps",
+          "rps": 30,
+          "duration": "11m",
+          "vus": 50,
+          "timeout": "5s"
+        },
+        "hpa": {
+          "compose-post-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50
+          },
+          "text-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50,
+            "parent_metric": "text_service_parent_cpu_utilization_pct",
+            "parent_target_type": "AverageValue",
+            "parent_target_value": "50"
+          },
+          "user-mention-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50,
+            "parent_metric": "user_mention_parent_cpu_utilization_pct",
+            "parent_target_type": "AverageValue",
+            "parent_target_value": "50"
+          }
+        },
+        "services": {
+          "compose-post-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "text-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "user-mention-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "nginx-thrift": {
+            "cpu_request": "300m",
+            "memory_request": null
+          }
+        },
+        "date": "2026-03-15 20:21:04 UTC",
+        "test_name": "dual_test_30rps",
+        "hpa_label": "hpa2",
+        "hpa_file": "deathstar-bench/hpa/context_aware_hpa_dual_metric.yaml",
+        "metrics": {
+          "p50_ms": 602.636,
+          "p90_ms": 1311.053,
+          "p95_ms": 1452.938,
+          "p99_ms": 1815.342,
+          "fail_pct": 6.983,
+          "rps": 28.232
+        }
+      },
+      {
+        "run_dir": "/home/dlamagna/projects/autoscaling-kubernetes/k6/grafana/2026-03-15/dual_test_30rps_hpa2_211351Z",
+        "k6": {
+          "load_mode": "rps",
+          "rps": 30,
+          "duration": "11m",
+          "vus": 50,
+          "timeout": "5s"
+        },
+        "hpa": {
+          "compose-post-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50
+          },
+          "text-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50,
+            "parent_metric": "text_service_parent_cpu_utilization_pct",
+            "parent_target_type": "AverageValue",
+            "parent_target_value": "50"
+          },
+          "user-mention-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50,
+            "parent_metric": "user_mention_parent_cpu_utilization_pct",
+            "parent_target_type": "AverageValue",
+            "parent_target_value": "50"
+          }
+        },
+        "services": {
+          "compose-post-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "text-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "user-mention-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "nginx-thrift": {
+            "cpu_request": "300m",
+            "memory_request": null
+          }
+        },
+        "date": "2026-03-15 21:27:45 UTC",
+        "test_name": "dual_test_30rps",
+        "hpa_label": "hpa2",
+        "hpa_file": "deathstar-bench/hpa/context_aware_hpa_dual_metric.yaml",
+        "metrics": {
+          "p50_ms": 356.535,
+          "p90_ms": 893.523,
+          "p95_ms": 1026.114,
+          "p99_ms": 1334.662,
+          "fail_pct": 4.019,
+          "rps": 28.21
+        }
+      },
+      {
+        "run_dir": "/home/dlamagna/projects/autoscaling-kubernetes/k6/grafana/2026-03-15/dual_test_30rps_hpa2_221959Z",
+        "k6": {
+          "load_mode": "rps",
+          "rps": 30,
+          "duration": "11m",
+          "vus": 50,
+          "timeout": "5s"
+        },
+        "hpa": {
+          "compose-post-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50
+          },
+          "text-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50,
+            "parent_metric": "text_service_parent_cpu_utilization_pct",
+            "parent_target_type": "AverageValue",
+            "parent_target_value": "50"
+          },
+          "user-mention-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50,
+            "parent_metric": "user_mention_parent_cpu_utilization_pct",
+            "parent_target_type": "AverageValue",
+            "parent_target_value": "50"
+          }
+        },
+        "services": {
+          "compose-post-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "text-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "user-mention-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "nginx-thrift": {
+            "cpu_request": "300m",
+            "memory_request": null
+          }
+        },
+        "date": "2026-03-15 22:33:52 UTC",
+        "test_name": "dual_test_30rps",
+        "hpa_label": "hpa2",
+        "hpa_file": "deathstar-bench/hpa/context_aware_hpa_dual_metric.yaml",
+        "metrics": {
+          "p50_ms": 432.851,
+          "p90_ms": 879.842,
+          "p95_ms": 970.54,
+          "p99_ms": 1287.385,
+          "fail_pct": 5.005,
+          "rps": 28.346
+        }
+      },
+      {
+        "run_dir": "/home/dlamagna/projects/autoscaling-kubernetes/k6/grafana/2026-03-15/dual_test_30rps_hpa2_232800Z",
+        "k6": {
+          "load_mode": "rps",
+          "rps": 30,
+          "duration": "11m",
+          "vus": 50,
+          "timeout": "5s"
+        },
+        "hpa": {
+          "compose-post-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50
+          },
+          "text-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50,
+            "parent_metric": "text_service_parent_cpu_utilization_pct",
+            "parent_target_type": "AverageValue",
+            "parent_target_value": "50"
+          },
+          "user-mention-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50,
+            "parent_metric": "user_mention_parent_cpu_utilization_pct",
+            "parent_target_type": "AverageValue",
+            "parent_target_value": "50"
+          }
+        },
+        "services": {
+          "compose-post-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "text-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "user-mention-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "nginx-thrift": {
+            "cpu_request": "300m",
+            "memory_request": null
+          }
+        },
+        "date": "2026-03-15 23:41:59 UTC",
+        "test_name": "dual_test_30rps",
+        "hpa_label": "hpa2",
+        "hpa_file": "deathstar-bench/hpa/context_aware_hpa_dual_metric.yaml",
+        "metrics": {
+          "p50_ms": 429.193,
+          "p90_ms": 976.103,
+          "p95_ms": 1105.104,
+          "p99_ms": 1330.822,
+          "fail_pct": 4.458,
+          "rps": 27.908
+        }
+      },
+      {
+        "run_dir": "/home/dlamagna/projects/autoscaling-kubernetes/k6/grafana/2026-03-16/dual_test_30rps_hpa2_003517Z",
+        "k6": {
+          "load_mode": "rps",
+          "rps": 30,
+          "duration": "11m",
+          "vus": 50,
+          "timeout": "5s"
+        },
+        "hpa": {
+          "compose-post-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50
+          },
+          "text-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50,
+            "parent_metric": "text_service_parent_cpu_utilization_pct",
+            "parent_target_type": "AverageValue",
+            "parent_target_value": "50"
+          },
+          "user-mention-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50,
+            "parent_metric": "user_mention_parent_cpu_utilization_pct",
+            "parent_target_type": "AverageValue",
+            "parent_target_value": "50"
+          }
+        },
+        "services": {
+          "compose-post-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "text-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "user-mention-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "nginx-thrift": {
+            "cpu_request": "300m",
+            "memory_request": null
+          }
+        },
+        "date": "2026-03-16 00:49:14 UTC",
+        "test_name": "dual_test_30rps",
+        "hpa_label": "hpa2",
+        "hpa_file": "deathstar-bench/hpa/context_aware_hpa_dual_metric.yaml",
+        "metrics": {
+          "p50_ms": 344.085,
+          "p90_ms": 706.208,
+          "p95_ms": 790.651,
+          "p99_ms": 1028.174,
+          "fail_pct": 3.839,
+          "rps": 28.214
+        }
+      },
+      {
+        "run_dir": "/home/dlamagna/projects/autoscaling-kubernetes/k6/grafana/2026-03-16/dual_test_30rps_hpa2_014149Z",
+        "k6": {
+          "load_mode": "rps",
+          "rps": 30,
+          "duration": "11m",
+          "vus": 50,
+          "timeout": "5s"
+        },
+        "hpa": {
+          "compose-post-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50
+          },
+          "text-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50,
+            "parent_metric": "text_service_parent_cpu_utilization_pct",
+            "parent_target_type": "AverageValue",
+            "parent_target_value": "50"
+          },
+          "user-mention-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50,
+            "parent_metric": "user_mention_parent_cpu_utilization_pct",
+            "parent_target_type": "AverageValue",
+            "parent_target_value": "50"
+          }
+        },
+        "services": {
+          "compose-post-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "text-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "user-mention-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "nginx-thrift": {
+            "cpu_request": "300m",
+            "memory_request": null
+          }
+        },
+        "date": "2026-03-16 01:55:46 UTC",
+        "test_name": "dual_test_30rps",
+        "hpa_label": "hpa2",
+        "hpa_file": "deathstar-bench/hpa/context_aware_hpa_dual_metric.yaml",
+        "metrics": {
+          "p50_ms": 410.323,
+          "p90_ms": 1211.076,
+          "p95_ms": 1367.831,
+          "p99_ms": 1687.398,
+          "fail_pct": 4.582,
+          "rps": 28.158
+        }
+      },
+      {
+        "run_dir": "/home/dlamagna/projects/autoscaling-kubernetes/k6/grafana/2026-03-16/dual_test_30rps_hpa2_024828Z",
+        "k6": {
+          "load_mode": "rps",
+          "rps": 30,
+          "duration": "11m",
+          "vus": 50,
+          "timeout": "5s"
+        },
+        "hpa": {
+          "compose-post-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50
+          },
+          "text-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50,
+            "parent_metric": "text_service_parent_cpu_utilization_pct",
+            "parent_target_type": "AverageValue",
+            "parent_target_value": "50"
+          },
+          "user-mention-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50,
+            "parent_metric": "user_mention_parent_cpu_utilization_pct",
+            "parent_target_type": "AverageValue",
+            "parent_target_value": "50"
+          }
+        },
+        "services": {
+          "compose-post-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "text-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "user-mention-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "nginx-thrift": {
+            "cpu_request": "300m",
+            "memory_request": null
+          }
+        },
+        "date": "2026-03-16 03:02:24 UTC",
+        "test_name": "dual_test_30rps",
+        "hpa_label": "hpa2",
+        "hpa_file": "deathstar-bench/hpa/context_aware_hpa_dual_metric.yaml",
+        "metrics": {
+          "p50_ms": 555.937,
+          "p90_ms": 1270.811,
+          "p95_ms": 1413.325,
+          "p99_ms": 1631.431,
+          "fail_pct": 5.519,
+          "rps": 28.206
+        }
+      },
+      {
+        "run_dir": "/home/dlamagna/projects/autoscaling-kubernetes/k6/grafana/2026-03-16/dual_test_30rps_hpa2_035515Z",
+        "k6": {
+          "load_mode": "rps",
+          "rps": 30,
+          "duration": "11m",
+          "vus": 50,
+          "timeout": "5s"
+        },
+        "hpa": {
+          "compose-post-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50
+          },
+          "text-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50,
+            "parent_metric": "text_service_parent_cpu_utilization_pct",
+            "parent_target_type": "AverageValue",
+            "parent_target_value": "50"
+          },
+          "user-mention-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50,
+            "parent_metric": "user_mention_parent_cpu_utilization_pct",
+            "parent_target_type": "AverageValue",
+            "parent_target_value": "50"
+          }
+        },
+        "services": {
+          "compose-post-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "text-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "user-mention-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "nginx-thrift": {
+            "cpu_request": "300m",
+            "memory_request": null
+          }
+        },
+        "date": "2026-03-16 04:09:11 UTC",
+        "test_name": "dual_test_30rps",
+        "hpa_label": "hpa2",
+        "hpa_file": "deathstar-bench/hpa/context_aware_hpa_dual_metric.yaml",
+        "metrics": {
+          "p50_ms": 282.69,
+          "p90_ms": 751.981,
+          "p95_ms": 835.701,
+          "p99_ms": 1034.795,
+          "fail_pct": 3.1,
+          "rps": 28.43
+        }
+      },
+      {
+        "run_dir": "/home/dlamagna/projects/autoscaling-kubernetes/k6/grafana/2026-03-16/dual_test_30rps_hpa2_050215Z",
+        "k6": {
+          "load_mode": "rps",
+          "rps": 30,
+          "duration": "11m",
+          "vus": 50,
+          "timeout": "5s"
+        },
+        "hpa": {
+          "compose-post-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50
+          },
+          "text-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50,
+            "parent_metric": "text_service_parent_cpu_utilization_pct",
+            "parent_target_type": "AverageValue",
+            "parent_target_value": "50"
+          },
+          "user-mention-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50,
+            "parent_metric": "user_mention_parent_cpu_utilization_pct",
+            "parent_target_type": "AverageValue",
+            "parent_target_value": "50"
+          }
+        },
+        "services": {
+          "compose-post-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "text-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "user-mention-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "nginx-thrift": {
+            "cpu_request": "300m",
+            "memory_request": null
+          }
+        },
+        "date": "2026-03-16 05:16:12 UTC",
+        "test_name": "dual_test_30rps",
+        "hpa_label": "hpa2",
+        "hpa_file": "deathstar-bench/hpa/context_aware_hpa_dual_metric.yaml",
+        "metrics": {
+          "p50_ms": 760.682,
+          "p90_ms": 1361.867,
+          "p95_ms": 1481.512,
+          "p99_ms": 1738.432,
+          "fail_pct": 8.614,
+          "rps": 28.376
+        }
+      },
+      {
+        "run_dir": "/home/dlamagna/projects/autoscaling-kubernetes/k6/grafana/2026-03-16/dual_test_30rps_hpa2_060907Z",
+        "k6": {
+          "load_mode": "rps",
+          "rps": 30,
+          "duration": "11m",
+          "vus": 50,
+          "timeout": "5s"
+        },
+        "hpa": {
+          "compose-post-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50
+          },
+          "text-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50,
+            "parent_metric": "text_service_parent_cpu_utilization_pct",
+            "parent_target_type": "AverageValue",
+            "parent_target_value": "50"
+          },
+          "user-mention-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50,
+            "parent_metric": "user_mention_parent_cpu_utilization_pct",
+            "parent_target_type": "AverageValue",
+            "parent_target_value": "50"
+          }
+        },
+        "services": {
+          "compose-post-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "text-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "user-mention-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "nginx-thrift": {
+            "cpu_request": "300m",
+            "memory_request": null
+          }
+        },
+        "date": "2026-03-16 06:23:03 UTC",
+        "test_name": "dual_test_30rps",
+        "hpa_label": "hpa2",
+        "hpa_file": "deathstar-bench/hpa/context_aware_hpa_dual_metric.yaml",
+        "metrics": {
+          "p50_ms": 479.31,
+          "p90_ms": 1019.305,
+          "p95_ms": 1155.187,
+          "p99_ms": 1456.719,
+          "fail_pct": 5.418,
+          "rps": 28.316
+        }
+      },
+      {
+        "run_dir": "/home/dlamagna/projects/autoscaling-kubernetes/k6/grafana/2026-03-16/dual_test_30rps_hpa2_071639Z",
+        "k6": {
+          "load_mode": "rps",
+          "rps": 30,
+          "duration": "11m",
+          "vus": 50,
+          "timeout": "5s"
+        },
+        "hpa": {
+          "compose-post-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50
+          },
+          "text-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50,
+            "parent_metric": "text_service_parent_cpu_utilization_pct",
+            "parent_target_type": "AverageValue",
+            "parent_target_value": "50"
+          },
+          "user-mention-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50,
+            "parent_metric": "user_mention_parent_cpu_utilization_pct",
+            "parent_target_type": "AverageValue",
+            "parent_target_value": "50"
+          }
+        },
+        "services": {
+          "compose-post-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "text-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "user-mention-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "nginx-thrift": {
+            "cpu_request": "300m",
+            "memory_request": null
+          }
+        },
+        "date": "2026-03-16 07:30:38 UTC",
+        "test_name": "dual_test_30rps",
+        "hpa_label": "hpa2",
+        "hpa_file": "deathstar-bench/hpa/context_aware_hpa_dual_metric.yaml",
+        "metrics": {
+          "p50_ms": 899.357,
+          "p90_ms": 1474.001,
+          "p95_ms": 1631.53,
+          "p99_ms": 2014.991,
+          "fail_pct": 9.596,
+          "rps": 27.994
+        }
+      },
+      {
+        "run_dir": "/home/dlamagna/projects/autoscaling-kubernetes/k6/grafana/2026-03-16/dual_test_30rps_hpa2_082331Z",
+        "k6": {
+          "load_mode": "rps",
+          "rps": 30,
+          "duration": "11m",
+          "vus": 50,
+          "timeout": "5s"
+        },
+        "hpa": {
+          "compose-post-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50
+          },
+          "text-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50,
+            "parent_metric": "text_service_parent_cpu_utilization_pct",
+            "parent_target_type": "AverageValue",
+            "parent_target_value": "50"
+          },
+          "user-mention-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50,
+            "parent_metric": "user_mention_parent_cpu_utilization_pct",
+            "parent_target_type": "AverageValue",
+            "parent_target_value": "50"
+          }
+        },
+        "services": {
+          "compose-post-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "text-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "user-mention-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "nginx-thrift": {
+            "cpu_request": "300m",
+            "memory_request": null
+          }
+        },
+        "date": "2026-03-16 08:37:28 UTC",
+        "test_name": "dual_test_30rps",
+        "hpa_label": "hpa2",
+        "hpa_file": "deathstar-bench/hpa/context_aware_hpa_dual_metric.yaml",
+        "metrics": {
+          "p50_ms": 1188.874,
+          "p90_ms": 1982.388,
+          "p95_ms": 2067.696,
+          "p99_ms": 2356.729,
+          "fail_pct": 13.205,
+          "rps": 28.014
+        }
+      },
+      {
+        "run_dir": "/home/dlamagna/projects/autoscaling-kubernetes/k6/grafana/2026-03-16/dual_test_30rps_hpa2_093034Z",
+        "k6": {
+          "load_mode": "rps",
+          "rps": 30,
+          "duration": "11m",
+          "vus": 50,
+          "timeout": "5s"
+        },
+        "hpa": {
+          "compose-post-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50
+          },
+          "text-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50,
+            "parent_metric": "text_service_parent_cpu_utilization_pct",
+            "parent_target_type": "AverageValue",
+            "parent_target_value": "50"
+          },
+          "user-mention-service": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cpu_threshold": 50,
+            "parent_metric": "user_mention_parent_cpu_utilization_pct",
+            "parent_target_type": "AverageValue",
+            "parent_target_value": "50"
+          }
+        },
+        "services": {
+          "compose-post-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "text-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "user-mention-service": {
+            "cpu_request": "60m",
+            "memory_request": null
+          },
+          "nginx-thrift": {
+            "cpu_request": "300m",
+            "memory_request": null
+          }
+        },
+        "date": "2026-03-16 09:44:30 UTC",
+        "test_name": "dual_test_30rps",
+        "hpa_label": "hpa2",
+        "hpa_file": "deathstar-bench/hpa/context_aware_hpa_dual_metric.yaml",
+        "metrics": {
+          "p50_ms": 307.945,
+          "p90_ms": 996.206,
+          "p95_ms": 1125.241,
+          "p99_ms": 1376.175,
+          "fail_pct": 3.531,
+          "rps": 28.49
+        }
+      }
+    ],
+    "aggregate": {
+      "p50_ms": 576.395,
+      "p90_ms": 1272.362,
+      "p95_ms": 1413.328,
+      "p99_ms": 1724.923,
+      "fail_pct": 6.209,
+      "rps": 28.189
+    }
+  },
+  "comparison": {
+    "p50_ms": {
+      "hpa1": 754.218,
+      "hpa2": 576.395,
+      "diff": -177.823,
+      "diff_pct": -23.58
+    },
+    "p95_ms": {
+      "hpa1": 1580.979,
+      "hpa2": 1413.328,
+      "diff": -167.651,
+      "diff_pct": -10.6
+    },
+    "p99_ms": {
+      "hpa1": 1914.098,
+      "hpa2": 1724.923,
+      "diff": -189.175,
+      "diff_pct": -9.88
+    },
+    "fail_pct": {
+      "hpa1": 7.972,
+      "hpa2": 6.209,
+      "diff": -1.763,
+      "diff_pct": -22.11
+    },
+    "rps": {
+      "hpa1": 28.169,
+      "hpa2": 28.189,
+      "diff": 0.02,
+      "diff_pct": 0.07
+    }
+  }
+}

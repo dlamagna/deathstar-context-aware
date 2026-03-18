@@ -1,0 +1,202 @@
+[INFO] Truncating each run to first 50 buckets
+[INFO] Loading HPA1 runs (40 iterations)...
+[INFO] Loaded /home/dlamagna/projects/autoscaling-kubernetes/k6/grafana/2026-03-14/dual_test_30rps_hpa1_112152Z/unified_report.csv: 50 rows, 29 cols
+[INFO] Loaded /home/dlamagna/projects/autoscaling-kubernetes/k6/grafana/2026-03-14/dual_test_30rps_hpa1_122831Z/unified_report.csv: 50 rows, 29 cols
+[INFO] Loaded /home/dlamagna/projects/autoscaling-kubernetes/k6/grafana/2026-03-14/dual_test_30rps_hpa1_133549Z/unified_report.csv: 50 rows, 29 cols
+[INFO] Loaded /home/dlamagna/projects/autoscaling-kubernetes/k6/grafana/2026-03-14/dual_test_30rps_hpa1_144936Z/unified_report.csv: 50 rows, 29 cols
+[INFO] Loaded /home/dlamagna/projects/autoscaling-kubernetes/k6/grafana/2026-03-14/dual_test_30rps_hpa1_155625Z/unified_report.csv: 50 rows, 29 cols
+[INFO] Loaded /home/dlamagna/projects/autoscaling-kubernetes/k6/grafana/2026-03-14/dual_test_30rps_hpa1_170221Z/unified_report.csv: 50 rows, 29 cols
+[INFO] Loaded /home/dlamagna/projects/autoscaling-kubernetes/k6/grafana/2026-03-14/dual_test_30rps_hpa1_180930Z/unified_report.csv: 50 rows, 29 cols
+[INFO] Loaded /home/dlamagna/projects/autoscaling-kubernetes/k6/grafana/2026-03-14/dual_test_30rps_hpa1_191608Z/unified_report.csv: 50 rows, 29 cols
+[INFO] Loaded /home/dlamagna/projects/autoscaling-kubernetes/k6/grafana/2026-03-14/dual_test_30rps_hpa1_210213Z/unified_report.csv: 50 rows, 29 cols
+[INFO] Loaded /home/dlamagna/projects/autoscaling-kubernetes/k6/grafana/2026-03-14/dual_test_30rps_hpa1_220938Z/unified_report.csv: 50 rows, 29 cols
+[INFO] Loaded /home/dlamagna/projects/autoscaling-kubernetes/k6/grafana/2026-03-14/dual_test_30rps_hpa1_231836Z/unified_report.csv: 50 rows, 29 cols
+[INFO] Loaded /home/dlamagna/projects/autoscaling-kubernetes/k6/grafana/2026-03-15/dual_test_30rps_hpa1_002522Z/unified_report.csv: 50 rows, 29 cols
+[INFO] Loaded /home/dlamagna/projects/autoscaling-kubernetes/k6/grafana/2026-03-15/dual_test_30rps_hpa1_013232Z/unified_report.csv: 50 rows, 29 cols
+[INFO] Loaded /home/dlamagna/projects/autoscaling-kubernetes/k6/grafana/2026-03-15/dual_test_30rps_hpa1_023929Z/unified_report.csv: 50 rows, 29 cols
+[INFO] Loaded /home/dlamagna/projects/autoscaling-kubernetes/k6/grafana/2026-03-15/dual_test_30rps_hpa1_034632Z/unified_report.csv: 50 rows, 29 cols
+[INFO] Loaded /home/dlamagna/projects/autoscaling-kubernetes/k6/grafana/2026-03-15/dual_test_30rps_hpa1_051850Z/unified_report.csv: 50 rows, 29 cols
+[INFO] Loaded /home/dlamagna/projects/autoscaling-kubernetes/k6/grafana/2026-03-15/dual_test_30rps_hpa1_062541Z/unified_report.csv: 50 rows, 29 cols
+[INFO] Loaded /home/dlamagna/projects/autoscaling-kubernetes/k6/grafana/2026-03-15/dual_test_30rps_hpa1_073151Z/unified_report.csv: 50 rows, 29 cols
+[INFO] Loaded /home/dlamagna/projects/autoscaling-kubernetes/k6/grafana/2026-03-15/dual_test_30rps_hpa1_083853Z/unified_report.csv: 50 rows, 29 cols
+[INFO] Loaded /home/dlamagna/projects/autoscaling-kubernetes/k6/grafana/2026-03-15/dual_test_30rps_hpa1_094607Z/unified_report.csv: 50 rows, 29 cols
+[INFO] Loaded /home/dlamagna/projects/autoscaling-kubernetes/k6/grafana/2026-03-15/dual_test_30rps_hpa1_105320Z/unified_report.csv: 50 rows, 29 cols
+[INFO] Loaded /home/dlamagna/projects/autoscaling-kubernetes/k6/grafana/2026-03-15/dual_test_30rps_hpa1_120039Z/unified_report.csv: 50 rows, 29 cols
+[INFO] Loaded /home/dlamagna/projects/autoscaling-kubernetes/k6/grafana/2026-03-15/dual_test_30rps_hpa1_140109Z/unified_report.csv: 50 rows, 29 cols
+[INFO] Loaded /home/dlamagna/projects/autoscaling-kubernetes/k6/grafana/2026-03-15/dual_test_30rps_hpa1_150726Z/unified_report.csv: 50 rows, 29 cols
+[INFO] Loaded /home/dlamagna/projects/autoscaling-kubernetes/k6/grafana/2026-03-15/dual_test_30rps_hpa1_161337Z/unified_report.csv: 50 rows, 29 cols
+[INFO] Loaded /home/dlamagna/projects/autoscaling-kubernetes/k6/grafana/2026-03-15/dual_test_30rps_hpa1_172042Z/unified_report.csv: 50 rows, 29 cols
+[INFO] Loaded /home/dlamagna/projects/autoscaling-kubernetes/k6/grafana/2026-03-15/dual_test_30rps_hpa1_182636Z/unified_report.csv: 50 rows, 29 cols
+[INFO] Loaded /home/dlamagna/projects/autoscaling-kubernetes/k6/grafana/2026-03-15/dual_test_30rps_hpa1_193344Z/unified_report.csv: 50 rows, 29 cols
+[INFO] Loaded /home/dlamagna/projects/autoscaling-kubernetes/k6/grafana/2026-03-15/dual_test_30rps_hpa1_203939Z/unified_report.csv: 50 rows, 29 cols
+[INFO] Loaded /home/dlamagna/projects/autoscaling-kubernetes/k6/grafana/2026-03-15/dual_test_30rps_hpa1_214600Z/unified_report.csv: 50 rows, 29 cols
+[INFO] Loaded /home/dlamagna/projects/autoscaling-kubernetes/k6/grafana/2026-03-15/dual_test_30rps_hpa1_225319Z/unified_report.csv: 50 rows, 29 cols
+[INFO] Loaded /home/dlamagna/projects/autoscaling-kubernetes/k6/grafana/2026-03-16/dual_test_30rps_hpa1_000115Z/unified_report.csv: 50 rows, 29 cols
+[INFO] Loaded /home/dlamagna/projects/autoscaling-kubernetes/k6/grafana/2026-03-16/dual_test_30rps_hpa1_010741Z/unified_report.csv: 50 rows, 29 cols
+[INFO] Loaded /home/dlamagna/projects/autoscaling-kubernetes/k6/grafana/2026-03-16/dual_test_30rps_hpa1_021404Z/unified_report.csv: 50 rows, 29 cols
+[INFO] Loaded /home/dlamagna/projects/autoscaling-kubernetes/k6/grafana/2026-03-16/dual_test_30rps_hpa1_032100Z/unified_report.csv: 50 rows, 29 cols
+[INFO] Loaded /home/dlamagna/projects/autoscaling-kubernetes/k6/grafana/2026-03-16/dual_test_30rps_hpa1_042831Z/unified_report.csv: 50 rows, 29 cols
+[INFO] Loaded /home/dlamagna/projects/autoscaling-kubernetes/k6/grafana/2026-03-16/dual_test_30rps_hpa1_053502Z/unified_report.csv: 50 rows, 29 cols
+[INFO] Loaded /home/dlamagna/projects/autoscaling-kubernetes/k6/grafana/2026-03-16/dual_test_30rps_hpa1_064207Z/unified_report.csv: 50 rows, 29 cols
+[INFO] Loaded /home/dlamagna/projects/autoscaling-kubernetes/k6/grafana/2026-03-16/dual_test_30rps_hpa1_074906Z/unified_report.csv: 50 rows, 29 cols
+[INFO] Loaded /home/dlamagna/projects/autoscaling-kubernetes/k6/grafana/2026-03-16/dual_test_30rps_hpa1_085626Z/unified_report.csv: 50 rows, 29 cols
+[INFO] Loading HPA2 runs (40 iterations)...
+[INFO] Loaded /home/dlamagna/projects/autoscaling-kubernetes/k6/grafana/2026-03-14/dual_test_30rps_hpa2_115549Z/unified_report.csv: 50 rows, 31 cols
+[INFO] Loaded /home/dlamagna/projects/autoscaling-kubernetes/k6/grafana/2026-03-14/dual_test_30rps_hpa2_130243Z/unified_report.csv: 50 rows, 31 cols
+[INFO] Loaded /home/dlamagna/projects/autoscaling-kubernetes/k6/grafana/2026-03-14/dual_test_30rps_hpa2_140952Z/unified_report.csv: 50 rows, 31 cols
+[INFO] Loaded /home/dlamagna/projects/autoscaling-kubernetes/k6/grafana/2026-03-14/dual_test_30rps_hpa2_152330Z/unified_report.csv: 50 rows, 31 cols
+[INFO] Loaded /home/dlamagna/projects/autoscaling-kubernetes/k6/grafana/2026-03-14/dual_test_30rps_hpa2_162943Z/unified_report.csv: 50 rows, 31 cols
+[INFO] Loaded /home/dlamagna/projects/autoscaling-kubernetes/k6/grafana/2026-03-14/dual_test_30rps_hpa2_173604Z/unified_report.csv: 50 rows, 31 cols
+[INFO] Loaded /home/dlamagna/projects/autoscaling-kubernetes/k6/grafana/2026-03-14/dual_test_30rps_hpa2_184301Z/unified_report.csv: 50 rows, 31 cols
+[INFO] Loaded /home/dlamagna/projects/autoscaling-kubernetes/k6/grafana/2026-03-14/dual_test_30rps_hpa2_195033Z/unified_report.csv: 50 rows, 31 cols
+[INFO] Loaded /home/dlamagna/projects/autoscaling-kubernetes/k6/grafana/2026-03-14/dual_test_30rps_hpa2_213625Z/unified_report.csv: 50 rows, 31 cols
+[INFO] Loaded /home/dlamagna/projects/autoscaling-kubernetes/k6/grafana/2026-03-14/dual_test_30rps_hpa2_224333Z/unified_report.csv: 50 rows, 31 cols
+[INFO] Loaded /home/dlamagna/projects/autoscaling-kubernetes/k6/grafana/2026-03-14/dual_test_30rps_hpa2_235214Z/unified_report.csv: 50 rows, 31 cols
+[INFO] Loaded /home/dlamagna/projects/autoscaling-kubernetes/k6/grafana/2026-03-15/dual_test_30rps_hpa2_005901Z/unified_report.csv: 50 rows, 31 cols
+[INFO] Loaded /home/dlamagna/projects/autoscaling-kubernetes/k6/grafana/2026-03-15/dual_test_30rps_hpa2_020634Z/unified_report.csv: 50 rows, 31 cols
+[INFO] Loaded /home/dlamagna/projects/autoscaling-kubernetes/k6/grafana/2026-03-15/dual_test_30rps_hpa2_031321Z/unified_report.csv: 50 rows, 31 cols
+[INFO] Loaded /home/dlamagna/projects/autoscaling-kubernetes/k6/grafana/2026-03-15/dual_test_30rps_hpa2_042000Z/unified_report.csv: 50 rows, 31 cols
+[INFO] Loaded /home/dlamagna/projects/autoscaling-kubernetes/k6/grafana/2026-03-15/dual_test_30rps_hpa2_055250Z/unified_report.csv: 50 rows, 31 cols
+[INFO] Loaded /home/dlamagna/projects/autoscaling-kubernetes/k6/grafana/2026-03-15/dual_test_30rps_hpa2_065907Z/unified_report.csv: 50 rows, 31 cols
+[INFO] Loaded /home/dlamagna/projects/autoscaling-kubernetes/k6/grafana/2026-03-15/dual_test_30rps_hpa2_080554Z/unified_report.csv: 50 rows, 31 cols
+[INFO] Loaded /home/dlamagna/projects/autoscaling-kubernetes/k6/grafana/2026-03-15/dual_test_30rps_hpa2_091309Z/unified_report.csv: 50 rows, 31 cols
+[INFO] Loaded /home/dlamagna/projects/autoscaling-kubernetes/k6/grafana/2026-03-15/dual_test_30rps_hpa2_102008Z/unified_report.csv: 50 rows, 31 cols
+[INFO] Loaded /home/dlamagna/projects/autoscaling-kubernetes/k6/grafana/2026-03-15/dual_test_30rps_hpa2_112725Z/unified_report.csv: 50 rows, 31 cols
+[INFO] Loaded /home/dlamagna/projects/autoscaling-kubernetes/k6/grafana/2026-03-15/dual_test_30rps_hpa2_123444Z/unified_report.csv: 50 rows, 31 cols
+[INFO] Loaded /home/dlamagna/projects/autoscaling-kubernetes/k6/grafana/2026-03-15/dual_test_30rps_hpa2_143458Z/unified_report.csv: 50 rows, 31 cols
+[INFO] Loaded /home/dlamagna/projects/autoscaling-kubernetes/k6/grafana/2026-03-15/dual_test_30rps_hpa2_154120Z/unified_report.csv: 50 rows, 31 cols
+[INFO] Loaded /home/dlamagna/projects/autoscaling-kubernetes/k6/grafana/2026-03-15/dual_test_30rps_hpa2_164753Z/unified_report.csv: 50 rows, 31 cols
+[INFO] Loaded /home/dlamagna/projects/autoscaling-kubernetes/k6/grafana/2026-03-15/dual_test_30rps_hpa2_175410Z/unified_report.csv: 50 rows, 31 cols
+[INFO] Loaded /home/dlamagna/projects/autoscaling-kubernetes/k6/grafana/2026-03-15/dual_test_30rps_hpa2_190020Z/unified_report.csv: 50 rows, 31 cols
+[INFO] Loaded /home/dlamagna/projects/autoscaling-kubernetes/k6/grafana/2026-03-15/dual_test_30rps_hpa2_200705Z/unified_report.csv: 50 rows, 31 cols
+[INFO] Loaded /home/dlamagna/projects/autoscaling-kubernetes/k6/grafana/2026-03-15/dual_test_30rps_hpa2_211351Z/unified_report.csv: 50 rows, 31 cols
+[INFO] Loaded /home/dlamagna/projects/autoscaling-kubernetes/k6/grafana/2026-03-15/dual_test_30rps_hpa2_221959Z/unified_report.csv: 50 rows, 31 cols
+[INFO] Loaded /home/dlamagna/projects/autoscaling-kubernetes/k6/grafana/2026-03-15/dual_test_30rps_hpa2_232800Z/unified_report.csv: 50 rows, 31 cols
+[INFO] Loaded /home/dlamagna/projects/autoscaling-kubernetes/k6/grafana/2026-03-16/dual_test_30rps_hpa2_003517Z/unified_report.csv: 50 rows, 31 cols
+[INFO] Loaded /home/dlamagna/projects/autoscaling-kubernetes/k6/grafana/2026-03-16/dual_test_30rps_hpa2_014149Z/unified_report.csv: 50 rows, 31 cols
+[INFO] Loaded /home/dlamagna/projects/autoscaling-kubernetes/k6/grafana/2026-03-16/dual_test_30rps_hpa2_024828Z/unified_report.csv: 50 rows, 31 cols
+[INFO] Loaded /home/dlamagna/projects/autoscaling-kubernetes/k6/grafana/2026-03-16/dual_test_30rps_hpa2_035515Z/unified_report.csv: 50 rows, 31 cols
+[INFO] Loaded /home/dlamagna/projects/autoscaling-kubernetes/k6/grafana/2026-03-16/dual_test_30rps_hpa2_050215Z/unified_report.csv: 50 rows, 31 cols
+[INFO] Loaded /home/dlamagna/projects/autoscaling-kubernetes/k6/grafana/2026-03-16/dual_test_30rps_hpa2_060907Z/unified_report.csv: 50 rows, 31 cols
+[INFO] Loaded /home/dlamagna/projects/autoscaling-kubernetes/k6/grafana/2026-03-16/dual_test_30rps_hpa2_071639Z/unified_report.csv: 50 rows, 31 cols
+[INFO] Loaded /home/dlamagna/projects/autoscaling-kubernetes/k6/grafana/2026-03-16/dual_test_30rps_hpa2_082331Z/unified_report.csv: 50 rows, 31 cols
+[INFO] Loaded /home/dlamagna/projects/autoscaling-kubernetes/k6/grafana/2026-03-16/dual_test_30rps_hpa2_093034Z/unified_report.csv: 50 rows, 31 cols
+[INFO] Aggregating 40 runs, 50 buckets each (trimmed to shortest)
+[INFO] Aggregating 40 runs, 50 buckets each (trimmed to shortest)
+[INFO] Saved averaged CSVs
+[INFO] Saved 6 averaged plots to data/40_runs_30rps_aggregated_094450Z/50buckets/hpa1/
+[INFO] Saved 6 averaged plots to data/40_runs_30rps_aggregated_094450Z/50buckets/hpa2/
+[INFO] Saved aggregated comparison plot to data/40_runs_30rps_aggregated_094450Z/50buckets/comparison/aggregated_comparison.png
+[INFO] Saved per-run P95 plot to data/40_runs_30rps_aggregated_094450Z/50buckets/hpa1/per_run_p95.png
+[INFO] Saved per-run P95 plot to data/40_runs_30rps_aggregated_094450Z/50buckets/hpa2/per_run_p95.png
+[INFO] Saved per-run P95 comparison plot to data/40_runs_30rps_aggregated_094450Z/50buckets/comparison/per_run_p95_comparison.png
+[INFO] Generated 7 overlay plots in data/40_runs_30rps_aggregated_094450Z/50buckets/comparison/
+  overlay_latency.png
+  overlay_throughput.png
+  overlay_failure_rate.png
+  overlay_replicas.png
+  overlay_cpu_utilization.png
+  overlay_cpu_mcore.png
+  overlay_memory.png
+[INFO] Loading raw k6 latencies for distribution plot...
+[INFO] Loaded 21,239 latency samples from /home/dlamagna/projects/autoscaling-kubernetes/k6/reports/dual_test_30rps_hpa1_20260314_111748.csv
+[INFO] Loaded 21,239 latency samples from /home/dlamagna/projects/autoscaling-kubernetes/k6/reports/dual_test_30rps_hpa1_20260314_122428.csv
+[INFO] Loaded 21,239 latency samples from /home/dlamagna/projects/autoscaling-kubernetes/k6/reports/dual_test_30rps_hpa1_20260314_133155.csv
+[INFO] Loaded 21,239 latency samples from /home/dlamagna/projects/autoscaling-kubernetes/k6/reports/dual_test_30rps_hpa1_20260314_144542.csv
+[INFO] Loaded 21,239 latency samples from /home/dlamagna/projects/autoscaling-kubernetes/k6/reports/dual_test_30rps_hpa1_20260314_155219.csv
+[INFO] Loaded 21,239 latency samples from /home/dlamagna/projects/autoscaling-kubernetes/k6/reports/dual_test_30rps_hpa1_20260314_165823.csv
+[INFO] Loaded 21,239 latency samples from /home/dlamagna/projects/autoscaling-kubernetes/k6/reports/dual_test_30rps_hpa1_20260314_180527.csv
+[INFO] Loaded 21,239 latency samples from /home/dlamagna/projects/autoscaling-kubernetes/k6/reports/dual_test_30rps_hpa1_20260314_191202.csv
+[INFO] Loaded 21,239 latency samples from /home/dlamagna/projects/autoscaling-kubernetes/k6/reports/dual_test_30rps_hpa1_20260314_205816.csv
+[INFO] Loaded 21,239 latency samples from /home/dlamagna/projects/autoscaling-kubernetes/k6/reports/dual_test_30rps_hpa1_20260314_220534.csv
+[INFO] Loaded 21,239 latency samples from /home/dlamagna/projects/autoscaling-kubernetes/k6/reports/dual_test_30rps_hpa1_20260314_231431.csv
+[INFO] Loaded 21,239 latency samples from /home/dlamagna/projects/autoscaling-kubernetes/k6/reports/dual_test_30rps_hpa1_20260315_002120.csv
+[INFO] Loaded 21,239 latency samples from /home/dlamagna/projects/autoscaling-kubernetes/k6/reports/dual_test_30rps_hpa1_20260315_012826.csv
+[INFO] Loaded 21,239 latency samples from /home/dlamagna/projects/autoscaling-kubernetes/k6/reports/dual_test_30rps_hpa1_20260315_023528.csv
+[INFO] Loaded 21,239 latency samples from /home/dlamagna/projects/autoscaling-kubernetes/k6/reports/dual_test_30rps_hpa1_20260315_034226.csv
+[INFO] Loaded 21,239 latency samples from /home/dlamagna/projects/autoscaling-kubernetes/k6/reports/dual_test_30rps_hpa1_20260315_051444.csv
+[INFO] Loaded 21,239 latency samples from /home/dlamagna/projects/autoscaling-kubernetes/k6/reports/dual_test_30rps_hpa1_20260315_062148.csv
+[INFO] Loaded 21,239 latency samples from /home/dlamagna/projects/autoscaling-kubernetes/k6/reports/dual_test_30rps_hpa1_20260315_072746.csv
+[INFO] Loaded 21,239 latency samples from /home/dlamagna/projects/autoscaling-kubernetes/k6/reports/dual_test_30rps_hpa1_20260315_083447.csv
+[INFO] Loaded 21,239 latency samples from /home/dlamagna/projects/autoscaling-kubernetes/k6/reports/dual_test_30rps_hpa1_20260315_094202.csv
+[INFO] Loaded 21,239 latency samples from /home/dlamagna/projects/autoscaling-kubernetes/k6/reports/dual_test_30rps_hpa1_20260315_104915.csv
+[INFO] Loaded 21,239 latency samples from /home/dlamagna/projects/autoscaling-kubernetes/k6/reports/dual_test_30rps_hpa1_20260315_115626.csv
+[INFO] Loaded 21,239 latency samples from /home/dlamagna/projects/autoscaling-kubernetes/k6/reports/dual_test_30rps_hpa1_20260315_135658.csv
+[INFO] Loaded 21,239 latency samples from /home/dlamagna/projects/autoscaling-kubernetes/k6/reports/dual_test_30rps_hpa1_20260315_150321.csv
+[INFO] Loaded 21,239 latency samples from /home/dlamagna/projects/autoscaling-kubernetes/k6/reports/dual_test_30rps_hpa1_20260315_160947.csv
+[INFO] Loaded 21,239 latency samples from /home/dlamagna/projects/autoscaling-kubernetes/k6/reports/dual_test_30rps_hpa1_20260315_171639.csv
+[INFO] Loaded 21,239 latency samples from /home/dlamagna/projects/autoscaling-kubernetes/k6/reports/dual_test_30rps_hpa1_20260315_182230.csv
+[INFO] Loaded 21,239 latency samples from /home/dlamagna/projects/autoscaling-kubernetes/k6/reports/dual_test_30rps_hpa1_20260315_192947.csv
+[INFO] Loaded 21,239 latency samples from /home/dlamagna/projects/autoscaling-kubernetes/k6/reports/dual_test_30rps_hpa1_20260315_203548.csv
+[INFO] Loaded 21,239 latency samples from /home/dlamagna/projects/autoscaling-kubernetes/k6/reports/dual_test_30rps_hpa1_20260315_214207.csv
+[INFO] Loaded 21,239 latency samples from /home/dlamagna/projects/autoscaling-kubernetes/k6/reports/dual_test_30rps_hpa1_20260315_224909.csv
+[INFO] Loaded 21,239 latency samples from /home/dlamagna/projects/autoscaling-kubernetes/k6/reports/dual_test_30rps_hpa1_20260315_235717.csv
+[INFO] Loaded 21,239 latency samples from /home/dlamagna/projects/autoscaling-kubernetes/k6/reports/dual_test_30rps_hpa1_20260316_010343.csv
+[INFO] Loaded 21,239 latency samples from /home/dlamagna/projects/autoscaling-kubernetes/k6/reports/dual_test_30rps_hpa1_20260316_021009.csv
+[INFO] Loaded 21,239 latency samples from /home/dlamagna/projects/autoscaling-kubernetes/k6/reports/dual_test_30rps_hpa1_20260316_031655.csv
+[INFO] Loaded 21,239 latency samples from /home/dlamagna/projects/autoscaling-kubernetes/k6/reports/dual_test_30rps_hpa1_20260316_042428.csv
+[INFO] Loaded 21,239 latency samples from /home/dlamagna/projects/autoscaling-kubernetes/k6/reports/dual_test_30rps_hpa1_20260316_053059.csv
+[INFO] Loaded 21,239 latency samples from /home/dlamagna/projects/autoscaling-kubernetes/k6/reports/dual_test_30rps_hpa1_20260316_063803.csv
+[INFO] Loaded 21,239 latency samples from /home/dlamagna/projects/autoscaling-kubernetes/k6/reports/dual_test_30rps_hpa1_20260316_074512.csv
+[INFO] Loaded 21,239 latency samples from /home/dlamagna/projects/autoscaling-kubernetes/k6/reports/dual_test_30rps_hpa1_20260316_085213.csv
+[INFO] Loaded 21,239 latency samples from /home/dlamagna/projects/autoscaling-kubernetes/k6/reports/dual_test_30rps_hpa2_20260314_111748.csv
+[INFO] Loaded 21,239 latency samples from /home/dlamagna/projects/autoscaling-kubernetes/k6/reports/dual_test_30rps_hpa2_20260314_122428.csv
+[INFO] Loaded 21,239 latency samples from /home/dlamagna/projects/autoscaling-kubernetes/k6/reports/dual_test_30rps_hpa2_20260314_133155.csv
+[INFO] Loaded 21,239 latency samples from /home/dlamagna/projects/autoscaling-kubernetes/k6/reports/dual_test_30rps_hpa2_20260314_144542.csv
+[INFO] Loaded 21,239 latency samples from /home/dlamagna/projects/autoscaling-kubernetes/k6/reports/dual_test_30rps_hpa2_20260314_155219.csv
+[INFO] Loaded 21,239 latency samples from /home/dlamagna/projects/autoscaling-kubernetes/k6/reports/dual_test_30rps_hpa2_20260314_165823.csv
+[INFO] Loaded 21,239 latency samples from /home/dlamagna/projects/autoscaling-kubernetes/k6/reports/dual_test_30rps_hpa2_20260314_180527.csv
+[INFO] Loaded 21,239 latency samples from /home/dlamagna/projects/autoscaling-kubernetes/k6/reports/dual_test_30rps_hpa2_20260314_191202.csv
+[INFO] Loaded 21,239 latency samples from /home/dlamagna/projects/autoscaling-kubernetes/k6/reports/dual_test_30rps_hpa2_20260314_205816.csv
+[INFO] Loaded 21,239 latency samples from /home/dlamagna/projects/autoscaling-kubernetes/k6/reports/dual_test_30rps_hpa2_20260314_220534.csv
+[INFO] Loaded 21,239 latency samples from /home/dlamagna/projects/autoscaling-kubernetes/k6/reports/dual_test_30rps_hpa2_20260314_231431.csv
+[INFO] Loaded 21,239 latency samples from /home/dlamagna/projects/autoscaling-kubernetes/k6/reports/dual_test_30rps_hpa2_20260315_002120.csv
+[INFO] Loaded 21,239 latency samples from /home/dlamagna/projects/autoscaling-kubernetes/k6/reports/dual_test_30rps_hpa2_20260315_012826.csv
+[INFO] Loaded 21,239 latency samples from /home/dlamagna/projects/autoscaling-kubernetes/k6/reports/dual_test_30rps_hpa2_20260315_023528.csv
+[INFO] Loaded 21,239 latency samples from /home/dlamagna/projects/autoscaling-kubernetes/k6/reports/dual_test_30rps_hpa2_20260315_034226.csv
+[INFO] Loaded 21,239 latency samples from /home/dlamagna/projects/autoscaling-kubernetes/k6/reports/dual_test_30rps_hpa2_20260315_051444.csv
+[INFO] Loaded 21,239 latency samples from /home/dlamagna/projects/autoscaling-kubernetes/k6/reports/dual_test_30rps_hpa2_20260315_062148.csv
+[INFO] Loaded 21,239 latency samples from /home/dlamagna/projects/autoscaling-kubernetes/k6/reports/dual_test_30rps_hpa2_20260315_072746.csv
+[INFO] Loaded 21,239 latency samples from /home/dlamagna/projects/autoscaling-kubernetes/k6/reports/dual_test_30rps_hpa2_20260315_083447.csv
+[INFO] Loaded 21,239 latency samples from /home/dlamagna/projects/autoscaling-kubernetes/k6/reports/dual_test_30rps_hpa2_20260315_094202.csv
+[INFO] Loaded 21,239 latency samples from /home/dlamagna/projects/autoscaling-kubernetes/k6/reports/dual_test_30rps_hpa2_20260315_104915.csv
+[INFO] Loaded 21,239 latency samples from /home/dlamagna/projects/autoscaling-kubernetes/k6/reports/dual_test_30rps_hpa2_20260315_115626.csv
+[INFO] Loaded 21,239 latency samples from /home/dlamagna/projects/autoscaling-kubernetes/k6/reports/dual_test_30rps_hpa2_20260315_135658.csv
+[INFO] Loaded 21,239 latency samples from /home/dlamagna/projects/autoscaling-kubernetes/k6/reports/dual_test_30rps_hpa2_20260315_150321.csv
+[INFO] Loaded 21,239 latency samples from /home/dlamagna/projects/autoscaling-kubernetes/k6/reports/dual_test_30rps_hpa2_20260315_160947.csv
+[INFO] Loaded 21,239 latency samples from /home/dlamagna/projects/autoscaling-kubernetes/k6/reports/dual_test_30rps_hpa2_20260315_171639.csv
+[INFO] Loaded 21,239 latency samples from /home/dlamagna/projects/autoscaling-kubernetes/k6/reports/dual_test_30rps_hpa2_20260315_182230.csv
+[INFO] Loaded 21,239 latency samples from /home/dlamagna/projects/autoscaling-kubernetes/k6/reports/dual_test_30rps_hpa2_20260315_192947.csv
+[INFO] Loaded 21,239 latency samples from /home/dlamagna/projects/autoscaling-kubernetes/k6/reports/dual_test_30rps_hpa2_20260315_203548.csv
+[INFO] Loaded 21,239 latency samples from /home/dlamagna/projects/autoscaling-kubernetes/k6/reports/dual_test_30rps_hpa2_20260315_214207.csv
+[INFO] Loaded 21,239 latency samples from /home/dlamagna/projects/autoscaling-kubernetes/k6/reports/dual_test_30rps_hpa2_20260315_224909.csv
+[INFO] Loaded 21,239 latency samples from /home/dlamagna/projects/autoscaling-kubernetes/k6/reports/dual_test_30rps_hpa2_20260315_235717.csv
+[INFO] Loaded 21,239 latency samples from /home/dlamagna/projects/autoscaling-kubernetes/k6/reports/dual_test_30rps_hpa2_20260316_010343.csv
+[INFO] Loaded 21,239 latency samples from /home/dlamagna/projects/autoscaling-kubernetes/k6/reports/dual_test_30rps_hpa2_20260316_021009.csv
+[INFO] Loaded 21,239 latency samples from /home/dlamagna/projects/autoscaling-kubernetes/k6/reports/dual_test_30rps_hpa2_20260316_031655.csv
+[INFO] Loaded 21,239 latency samples from /home/dlamagna/projects/autoscaling-kubernetes/k6/reports/dual_test_30rps_hpa2_20260316_042428.csv
+[INFO] Loaded 21,239 latency samples from /home/dlamagna/projects/autoscaling-kubernetes/k6/reports/dual_test_30rps_hpa2_20260316_053059.csv
+[INFO] Loaded 21,239 latency samples from /home/dlamagna/projects/autoscaling-kubernetes/k6/reports/dual_test_30rps_hpa2_20260316_063803.csv
+[INFO] Loaded 21,239 latency samples from /home/dlamagna/projects/autoscaling-kubernetes/k6/reports/dual_test_30rps_hpa2_20260316_074512.csv
+[INFO] Loaded 21,239 latency samples from /home/dlamagna/projects/autoscaling-kubernetes/k6/reports/dual_test_30rps_hpa2_20260316_085213.csv
+[INFO] Saved aggregated latency distribution to data/40_runs_30rps_aggregated_094450Z/50buckets/comparison/comparison_latency_distribution.png
+
+================================================================================
+AGGREGATED COMPARISON: Default HPA vs Context-Aware HPA
+================================================================================
+Metric                    Default HPA     Context-Aware HPA Diff         % Change  
+--------------------------------------------------------------------------------
+P50 Latency (ms)          754.22          576.39          -177.82      -23.58    %
+P90 Latency (ms)          1432.95         1272.36         -160.59      -11.21    %
+P95 Latency (ms)          1580.98         1413.33         -167.65      -10.60    %
+P99 Latency (ms)          1914.10         1724.92         -189.18      -9.88     %
+Throughput (rps)          28.17           28.19           0.02         0.07      %
+Failure Rate (%)          7.97            6.21            -1.76        -22.12    %
+Requests / bucket         281.69          281.89          0.21         0.07      %
+================================================================================
+
+[INFO] Saved runs summary JSON to data/40_runs_30rps_aggregated_094450Z/50buckets/comparison/runs_summary.json
+[INFO] Aggregation complete. Results in data/40_runs_30rps_aggregated_094450Z/50buckets/
+  data/40_runs_30rps_aggregated_094450Z/50buckets/hpa1/  - averaged CSV + plots for Default HPA
+  data/40_runs_30rps_aggregated_094450Z/50buckets/hpa2/  - averaged CSV + plots for Context-Aware HPA
+  data/40_runs_30rps_aggregated_094450Z/50buckets/comparison/ - comparison + overlay plots
