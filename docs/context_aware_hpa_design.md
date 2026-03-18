@@ -15,6 +15,16 @@ nginx-thrift (entry point)
 
 Each service in the chain depends on its upstream parent. The goal of context-aware scaling is: **when a parent service is under heavy load, proactively scale up the child service before the child itself becomes a bottleneck.**
 
+### Parent Metrics
+
+Each child service has a corresponding external metric defined in `prom/prometheus-adapter-values-parent-child.yaml`:
+
+| Metric | Reads from | Notes |
+|---|---|---|
+| `compose_post_parent_cpu_utilization_pct` | nginx-thrift per-pod CPU % | Standard `sum()/sum()` — average utilization across replicas |
+| `text_service_parent_cpu_utilization_pct` | compose-post per-pod CPU % | Standard `sum()/sum()` — average utilization across replicas |
+| `user_mention_parent_cpu_utilization_pct` | text-service **total load / one-pod-capacity** | Uses `min()` denominator (not `sum()`) so the signal is not diluted when text-service scales. `averageValue: "50"` → user-mention tracks text-service 1:1 at normal load (text-service at 50% CPU), scales proportionally when overloaded. |
+
 ---
 
 ## Approach 1: Combined Pooled Metric (Dilution Bug)
@@ -193,8 +203,8 @@ The fix is to use `type: AverageValue` for the parent metric. The key difference
 
 | Target Type | Formula | Depends on currentReplicas? |
 |---|---|---|
-| `Value` | $ \lceil \text{currentReplicas} \times \frac{V}{T} \rceil $ | **Yes** — causes runaway |
-| `AverageValue` | $ \lceil \frac{V}{T} \rceil $ | **No** — stable |
+| `Value` | $$\lceil \text{currentReplicas} \times \frac{V}{T} \rceil$$ | **Yes** — causes runaway |
+| `AverageValue` | $$\lceil \frac{V}{T} \rceil$$ | **No** — stable |
 
 With `AverageValue`, the desired replica count is derived directly from the metric value divided by the target, with no feedback loop.
 
@@ -214,7 +224,7 @@ metrics:
         name: text_service_parent_cpu_utilization_pct
       target:
         type: AverageValue
-        averageValue: "25"
+        averageValue: "50"
 ```
 
 ### Stability Proof
@@ -231,9 +241,9 @@ $$
 1 \leq \text{desiredReplicas} \leq \left\lceil \frac{100}{A} \right\rceil
 $$
 
-With $ A = 25 $, the maximum from the parent signal alone is $ \lceil 100/25 \rceil = 4 $ replicas.
+With $ A = 50 $, the maximum from the parent signal alone is $ \lceil 100/50 \rceil = 2 $ replicas.
 
-### Why `averageValue: "25"`?
+### Why `averageValue: "50"`?
 
 The `averageValue` parameter controls how aggressively the child scales in response to the parent's load. It can be read as: *"for every `averageValue` percent of parent CPU, allocate one child replica."*
 
@@ -244,11 +254,11 @@ The `averageValue` parameter controls how aggressively the child scales in respo
 | 75% | 2 | 3 | 5 |
 | 100% | 2 | 4 | 7 |
 
-- **`"50"`** is very conservative — the parent signal rarely adds more than 1 replica, making the context-aware aspect negligible.
-- **`"25"`** provides a proportional boost: when the parent is at its own scaling threshold (50%), the child gets 2 replicas from this signal. The child's own CPU metric can independently push higher if needed.
-- **`"15"`** or lower is aggressive — useful if the child is a known bottleneck that needs heavy proactive scaling.
+- **`"50"`** (chosen) — one additional child replica per 50% of parent CPU. Caps at 2 replicas from the parent signal alone; the child's own CPU metric drives further scaling if needed. Avoids over-provisioning from the parent signal during moderate load.
+- **`"25"`** — more aggressive: when the parent hits its scaling threshold (50%), the child already gets 2 replicas from this signal alone.
+- **`"15"`** or lower — very aggressive; useful if the child is a known bottleneck requiring heavy proactive scaling.
 
-The value `"25"` was chosen as a balanced starting point for testing.
+`"50"` is used for all services in the current configuration.
 
 ### How the HPA Combines Both Metrics
 
